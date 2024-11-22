@@ -1,0 +1,160 @@
+import socket
+import sys
+import os
+import time
+import threading
+import logging
+import random
+import errno
+from abc import ABC, abstractmethod
+
+from rixcore.common import Protocol, get_local_ip
+from rixmsg.standard.ComponentInfo import ComponentInfo
+from rixmsg.standard.ID import ID
+from rixmsg.standard.URI import URI
+
+class IPublisher(ABC):
+    def __init__(self, topic: str, node_id: int, protocol: int, TMsg: any):
+        self.component_info = ComponentInfo()
+        self.component_info.topic = topic.encode()
+        self.component_info.protocol = protocol
+        self.component_info.node_id = node_id
+        self.component_info.component_id = random.getrandbits(64)
+        self.component_info.msg_hash_a[0] = TMsg.hash()[0]
+        self.component_info.msg_hash_a[1] = TMsg.hash()[1]
+
+        self.num_subs = 0
+        self._shutdown_flag = False
+
+    def get_num_subscribers(self) -> int:
+        return self.num_subs
+
+    def shutdown(self):
+        self._shutdown_flag = True
+
+    @abstractmethod
+    def _get_id(self) -> ID:
+        pass
+
+    @abstractmethod
+    def _add_subscriber(self, sub_id: ID) -> None:
+        pass
+
+    @abstractmethod
+    def _remove_subscriber(self, sub_id: ID) -> None:
+        pass
+
+    @abstractmethod
+    def _run_once(self) -> None:
+        pass
+
+class Publisher(IPublisher):
+    def __init__(self, topic: str, node_id: int, protocol: int, TMsg: any):
+        super().__init__(topic, node_id, protocol, TMsg)
+        self.add_sub_set = []
+        self.remove_sub_set = []
+        self.mutex = threading.Lock()
+
+    def publish(self, msg: any) -> None:
+        self.mutex.acquire()
+        self._handle_msg(msg)
+        self.mutex.release()
+
+    def _add_subscriber(self, sub_id: ID) -> None:
+        self.mutex.acquire()
+        self.add_sub_set.append(sub_id)
+        self.mutex.release()
+
+    def _remove_subscriber(self, sub_id: ID) -> None:
+        self.mutex.acquire()
+        self.remove_sub_set.append(sub_id)
+        self.mutex.release()
+
+    def _run_once(self) -> None:
+        self.mutex.acquire()
+        if len(self.add_sub_set) > 0:
+            self._accept_subscribers(self.add_sub_set)
+        if len(self.remove_sub_set) > 0:
+            self._remove_subscribers(self.remove_sub_set)
+        self.mutex.release()
+
+    @abstractmethod
+    def _handle_msg(self, msg: any) -> None:
+        pass
+
+    @abstractmethod
+    def _accept_subscribers(self, sub_ids) -> None:
+        pass
+
+    @abstractmethod
+    def _remove_subscribers(self, sub_ids) -> None:
+        pass
+
+class PublisherTCP(Publisher):
+    def __init__(self, topic: str, node_id: int, TMsg: any):
+        super().__init__(topic, node_id, Protocol['TCP'], TMsg)
+        self.tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcp_server.bind((get_local_ip(), 0))
+        self.tcp_server.listen(64)
+        self.tcp_server.settimeout(1)
+        self.tcp_server.setblocking(False)
+
+        self.tcp_conns = {}
+
+    def _get_id(self) -> ID:
+        # Get the IP and port of the server
+        ip, port = self.tcp_server.getsockname()
+        id = ID()
+        id.component_id = self.component_info.component_id
+        id.uri.address = ip.encode()
+        id.uri.port = port
+        return id
+    
+    def _handle_msg(self, msg: any) -> None:
+        for id in self.tcp_conns:
+            try:
+                msg_encoded = msg.encode()
+                status = self.tcp_conns[id].send(msg_encoded)
+                if status < 0:
+                    logging.error("Failed to send message")
+            except:
+                logging.error("Failed to send message")
+
+    def _accept_subscribers(self, sub_ids) -> None:
+        while len(sub_ids) > 0 and not self._shutdown_flag:
+
+            # Accept the connection
+            try:
+                conn, _ = self.tcp_server.accept()
+            except socket.timeout:
+                continue
+            except Exception as e:
+                if e.errno == errno.EAGAIN or e.errno == errno.EWOULDBLOCK:
+                    continue
+                logging.error("Failed to accept connection: " + str(e))
+                break
+            
+            # Receive the ID of the subscriber
+            data = None
+            while not self._shutdown_flag:
+                try:
+                    data = conn.recv(ID.size())
+                except socket.timeout:
+                    continue
+                except:
+                    logging.error("Failed to receive data")
+                    break
+                break
+
+            sub_id = ID.decode(data)
+            self.tcp_conns[sub_id.component_id] = conn
+            sub_ids.pop()
+        self.num_subs = len(self.tcp_conns)
+
+    def _remove_subscribers(self, sub_ids) -> None:
+        for sub_id in sub_ids:
+            if sub_id.component_id in self.tcp_conns:
+                self.tcp_conns[sub_id.component_id].close()
+                del self.tcp_conns[sub_id.component_id]
+        sub_ids.clear()
+        self.num_subs = len(self.tcp_conns)
