@@ -1,15 +1,15 @@
-from picamera2 import Picamera2
 import signal
 import time
 import ctypes
 import argparse
+from picamera2 import Picamera2, Preview
+import numpy as np
 
 from rixcore.common import Protocol, get_local_ip, RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.publisher import Publisher
 from rixmsg.sensor.Image import ImageTemplate
 from rixmsg.sensor.CompressedImage import CompressedImageTemplate
-from rixmsg.sensor.Image import ImageTemplate
 
 # Define default WIDTH, HEIGHT
 WIDTH = 1920
@@ -34,18 +34,22 @@ def main():
 
     node.spin(False)
 
-    # Open the default camera
-    cam = cv2.VideoCapture(CAMERA_INDEX)
+    # Initialize Picamera2
+    picam2 = Picamera2()
+    config = picam2.create_still_configuration(main={"size": (WIDTH, HEIGHT)})
+    picam2.configure(config)
+    picam2.start()
+
     jpg_msg = CompressedImage()
     raw_msg = Image()
 
     while node.ok():
-        ret, frame = cam.read()
-        if not ret:
+        frame = picam2.capture_array()
+        if frame is None:
             print("Error reading frame")
             break
 
-        # Resize the frame
+        # Resize the frame (if necessary)
         frame = cv2.resize(frame, (WIDTH, HEIGHT))
 
         # Convert the frame to a ctypes array
@@ -75,9 +79,8 @@ def main():
         jpg_msg.num_bytes = len(jpg_frame)
         jpg_pub.publish(jpg_msg)
 
-    # Release the capture and writer objects
-    cam.release()
-    cv2.destroyAllWindows()
+    # Stop the camera
+    picam2.stop()
 
 if __name__ == '__main__':
     main()
