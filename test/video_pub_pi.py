@@ -80,6 +80,12 @@ def main():
         # Flip the frame vertically
         frame = cv2.flip(frame, 0)
 
+        # Flip the frame horizontally
+        frame = cv2.flip(frame, 1)
+
+        # Swap the R and B channels
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
         # Put the frame in the queue for encoding and publishing
         if not frame_queue.full():
             frame_queue.put(frame)
