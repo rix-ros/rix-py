@@ -15,8 +15,8 @@ from rixmsg.sensor.Image import ImageTemplate
 from rixmsg.sensor.CompressedImage import CompressedImageTemplate
 
 # Define default WIDTH, HEIGHT
-WIDTH = 1920
-HEIGHT = 1080
+WIDTH = 1280
+HEIGHT = 720
 
 # Define the Image and CompressedImage message types
 Image = ImageTemplate(WIDTH, HEIGHT, 3)
@@ -27,7 +27,7 @@ def encode_and_publish(queue, raw_pub, jpg_pub, raw_msg, jpg_msg):
     while True:
         frame = queue.get()
         if frame is None:
-            break
+            continue
 
         # Convert the frame to a ctypes array
         flat_frame = frame.flatten()

@@ -12,8 +12,8 @@ from rixmsg.sensor.CompressedImage import CompressedImageTemplate
 from rixmsg.sensor.Image import ImageTemplate
 
 # Define default WIDTH, HEIGHT
-WIDTH = 1920
-HEIGHT = 1080
+WIDTH = 1280
+HEIGHT = 720
 
 # Define the Image and CompressedImage message types
 Image = ImageTemplate(WIDTH, HEIGHT, 3)
