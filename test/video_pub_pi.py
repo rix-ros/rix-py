@@ -55,6 +55,9 @@ def main():
         # Resize the frame (if necessary)
         frame = cv2.resize(frame, (WIDTH, HEIGHT))
 
+        # Flip the frame vertically
+        frame = cv2.flip(frame, 0)
+
         # Convert the frame to a ctypes array
         flat_frame = frame.flatten()
         ctypes_array = (ctypes.c_uint8 * flat_frame.size).from_buffer_copy(flat_frame)
