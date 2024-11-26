@@ -3,6 +3,7 @@ import time
 import ctypes
 import argparse
 from picamera2 import Picamera2, Preview
+import cv2
 import numpy as np
 
 from rixcore.common import Protocol, get_local_ip, RIX_HUB_PORT
