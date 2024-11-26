@@ -11,7 +11,6 @@ from queue import Queue
 from rixcore.common import Protocol, get_local_ip, RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.publisher import Publisher
-from rixmsg.sensor.Image import ImageTemplate
 from rixmsg.sensor.CompressedImage import CompressedImageTemplate
 
 # Define default WIDTH, HEIGHT
@@ -19,25 +18,14 @@ WIDTH = 1280
 HEIGHT = 720
 
 # Define the Image and CompressedImage message types
-Image = ImageTemplate(WIDTH, HEIGHT, 3)
 COMPRESSED_MAX_SIZE = WIDTH * HEIGHT * 3 // 8
 CompressedImage = CompressedImageTemplate(COMPRESSED_MAX_SIZE)
 
-def encode_and_publish(queue, raw_pub, jpg_pub, raw_msg, jpg_msg):
+def encode_and_publish(queue, jpg_pub, jpg_msg):
     while True:
         frame = queue.get()
         if frame is None:
-            continue
-
-        # Convert the frame to a ctypes array
-        flat_frame = frame.flatten()
-        ctypes_array = (ctypes.c_uint8 * flat_frame.size).from_buffer_copy(flat_frame)
-        ctypes.memmove(raw_msg.data, ctypes_array, flat_frame.nbytes)
-
-        raw_msg.width = WIDTH
-        raw_msg.height = HEIGHT
-        raw_msg.channels = 3
-        raw_pub.publish(raw_msg)
+            break
 
         # Encode the frame as a JPEG image
         ret, jpg_frame = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])  # Adjust JPEG quality
@@ -59,15 +47,12 @@ def encode_and_publish(queue, raw_pub, jpg_pub, raw_msg, jpg_msg):
 def main():
     parser = argparse.ArgumentParser(description='Video Publisher')
     parser.add_argument('--hub_ip', type=str, default=get_local_ip(), help='Hub IP address')
-    parser.add_argument('--camera', type=int, default=0, help='Camera index')
     args = parser.parse_args()
 
     hub_ip = args.hub_ip
-    CAMERA_INDEX = args.camera
 
     node = Node()
     node.init('video_pub', hub_ip, RIX_HUB_PORT)
-    raw_pub = node.advertise(Image, "video_raw", Protocol['TCP'])
     jpg_pub = node.advertise(CompressedImage, "video_jpg", Protocol['TCP'])
 
     node.spin(False)
@@ -79,10 +64,9 @@ def main():
     picam2.start()
 
     jpg_msg = CompressedImage()
-    raw_msg = Image()
 
     frame_queue = Queue(maxsize=10)
-    threading.Thread(target=encode_and_publish, args=(frame_queue, raw_pub, jpg_pub, raw_msg, jpg_msg), daemon=True).start()
+    threading.Thread(target=encode_and_publish, args=(frame_queue, jpg_pub, jpg_msg), daemon=True).start()
 
     while node.ok():
         frame = picam2.capture_array()
