@@ -23,13 +23,15 @@ CompressedImage = CompressedImageTemplate(COMPRESSED_MAX_SIZE)
 
 def main():
     parser = argparse.ArgumentParser(description='Video Publisher')
+    parser.add_argument('--hub_ip', type=str, default=get_local_ip(), help='Hub IP address')
     parser.add_argument('--camera', type=int, default=0, help='Camera index')
     args = parser.parse_args()
 
+    hub_ip = args.hub_ip
     CAMERA_INDEX = args.camera
 
     node = Node()
-    node.init('video_pub', get_local_ip(), RIX_HUB_PORT)
+    node.init('video_pub', hub_ip, RIX_HUB_PORT)
     raw_pub = node.advertise(Image, "video_raw", Protocol['TCP'])
     jpg_pub = node.advertise(CompressedImage, "video_jpg", Protocol['TCP'])
 
