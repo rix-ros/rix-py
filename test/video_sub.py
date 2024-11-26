@@ -70,13 +70,15 @@ def show_jpg_cb(msg: 'CompressedImage') -> None:
 
 def main():
     parser = argparse.ArgumentParser(description='Video Subscriber')
+    parser.add_argument('--hub_ip', type=str, default=get_local_ip(), help='Hub IP address')
     parser.add_argument('--use_jpg', action='store_true', help='Use compressed JPEG image format')
     args = parser.parse_args()
 
+    hub_ip = args.hub_ip
     USE_JPG = args.use_jpg
 
     node = Node()
-    node.init('video_pub', get_local_ip(), RIX_HUB_PORT)
+    node.init('video_sub', hub_ip, RIX_HUB_PORT)
 
     frame_sub = None
     name = None
