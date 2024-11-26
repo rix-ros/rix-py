@@ -6,10 +6,11 @@ import threading
 import logging
 import random
 import signal
+import errno
 
 from time import time_ns, sleep
 
-from rixcore.common import Protocol, CORE_TOPICS
+from rixcore.common import Protocol, CORE_TOPICS, recv_all_bytes, send_all_bytes
 from rixcore.publisher import IPublisher, Publisher, PublisherTCP
 from rixcore.subscriber import ISubscriber, Subscriber, SubscriberTCP
 from rixmsg.standard.Info import Info
@@ -52,12 +53,17 @@ class Node:
         random.seed(None)
         self.node_id = random.getrandbits(64)
 
-        self.client.settimeout(1)
-        try:
-            self.client.connect((self.hub_ip, self.hub_port))
-        except:
-            logging.error("Failed to connect to hub")
-            sys.exit(1)
+        self.client.setblocking(False)
+        while True:
+            try:
+                self.client.connect((self.hub_ip, self.hub_port))
+            except Exception as e:
+                if e.errno == errno.EINPROGRESS or e.errno == errno.EALREADY:
+                    continue
+                elif e.errno == errno.EISCONN:
+                    break
+                logging.error("Failed to connect to hub: " + str(e.errno))
+                sys.exit(1)
 
         self.pubs: dict[str, IPublisher] = {}
         self.subs: dict[str, ISubscriber] = {}
@@ -147,14 +153,7 @@ class Node:
     def __run(self) -> None:
         while self.ok():
 
-            data = None
-            try:
-                data = self.client.recv(Info.size())
-            except socket.timeout:
-                pass
-            except:
-                logging.error("Failed to receive data")
-                break
+            data = recv_all_bytes(self.client, Info.size())
 
             if data is not None:
                 info = Info.decode(data)
@@ -203,10 +202,10 @@ class Node:
         info.contact_id = publisher._get_id()
 
         self.mutex.acquire()
-        status = self.client.send(info.encode())
+        status = send_all_bytes(self.client, info.encode())
         self.mutex.release()
 
-        if status < 0:
+        if not status:
             logging.error("Failed to send PUB_REGISTER")
             return False
         return True
@@ -221,10 +220,10 @@ class Node:
         info.contact_id = subscriber._get_id()
 
         self.mutex.acquire()
-        status = self.client.send(info.encode())
+        status = send_all_bytes(self.client, info.encode())
         self.mutex.release()
 
-        if status < 0:
+        if not status:
             logging.error("Failed to send SUB_REGISTER")
             return False
         return True
@@ -237,10 +236,10 @@ class Node:
         info.component_info.machine_id = self.machine_id
 
         self.mutex.acquire()
-        status = self.client.send(info.encode())
+        status = send_all_bytes(self.client, info.encode())
         self.mutex.release()
 
-        if status < 0:
+        if not status:
             logging.error("Failed to send PUB_DEREGISTER")
             return False
         return True
@@ -253,10 +252,10 @@ class Node:
         info.component_info.machine_id = self.machine_id
 
         self.mutex.acquire()
-        status = self.client.send(info.encode())
+        status = send_all_bytes(self.client, info.encode())
         self.mutex.release()
 
-        if status < 0:
+        if not status:
             logging.error("Failed to send SUB_DEREGISTER")
             return False
         return True

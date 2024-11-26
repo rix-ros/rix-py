@@ -1,4 +1,5 @@
 import socket
+import errno
 
 Protocol = {
     'TCP': 0x01,
@@ -70,3 +71,42 @@ def get_local_ip() -> str:
         return ip_address
     except Exception as e:
         return str(e)
+    
+def recv_all_bytes(sock, size: int, block: bool = False) -> bytes:
+    data = b''
+    while len(data) < size:
+        try:
+            packet = sock.recv(size - len(data))
+            if not packet:
+                # Connection closed
+                return None
+            data += packet
+        except socket.timeout:
+            if block:
+                continue
+            elif len(data) == 0:
+                return None
+            else:
+                continue
+        except socket.error as e:
+            if len(data) == 0:
+                if block:
+                    continue
+                return None
+            elif len(data) > 0 and (e.errno == errno.EAGAIN or e.errno == errno.EWOULDBLOCK):
+                continue
+            return None
+    return data
+
+def send_all_bytes(sock, data: bytes) -> bool:
+    total_sent = 0
+    total_size = len(data)
+    while total_sent < total_size:
+        try:
+            status = sock.send(data[total_sent:])
+            total_sent += status
+        except socket.error as e:
+            if e.errno == errno.EAGAIN or e.errno == errno.EWOULDBLOCK:
+                continue
+            return False
+    return True

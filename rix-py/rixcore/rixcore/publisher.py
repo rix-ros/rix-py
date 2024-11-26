@@ -8,7 +8,7 @@ import random
 import errno
 from abc import ABC, abstractmethod
 
-from rixcore.common import Protocol, get_local_ip
+from rixcore.common import Protocol, get_local_ip, recv_all_bytes, send_all_bytes
 from rixmsg.standard.ComponentInfo import ComponentInfo
 from rixmsg.standard.ID import ID
 from rixmsg.standard.URI import URI
@@ -110,14 +110,12 @@ class PublisherTCP(Publisher):
         id.uri.port = port
         return id
     
+
     def _handle_msg(self, msg: any) -> None:
         for id in self.tcp_conns:
-            try:
-                msg_encoded = msg.encode()
-                status = self.tcp_conns[id].send(msg_encoded)
-                if status < 0:
-                    logging.error("Failed to send message")
-            except:
+            msg_encoded = msg.encode()
+            status = send_all_bytes(self.tcp_conns[id], msg_encoded)
+            if not status:
                 logging.error("Failed to send message")
 
     def _accept_subscribers(self, sub_ids) -> None:
@@ -126,6 +124,7 @@ class PublisherTCP(Publisher):
             # Accept the connection
             try:
                 conn, _ = self.tcp_server.accept()
+                conn.setblocking(False)
             except socket.timeout:
                 continue
             except Exception as e:
@@ -135,17 +134,7 @@ class PublisherTCP(Publisher):
                 break
             
             # Receive the ID of the subscriber
-            data = None
-            while not self._shutdown_flag:
-                try:
-                    data = conn.recv(ID.size())
-                except socket.timeout:
-                    continue
-                except:
-                    logging.error("Failed to receive data")
-                    break
-                break
-
+            data = recv_all_bytes(conn, ID.size(), True)
             sub_id = ID.decode(data)
             self.tcp_conns[sub_id.component_id] = conn
             sub_ids.pop()

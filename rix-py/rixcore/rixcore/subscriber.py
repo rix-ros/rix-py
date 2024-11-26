@@ -8,7 +8,7 @@ import random
 from abc import ABC, abstractmethod
 import errno
 
-from rixcore.common import Protocol, get_local_ip
+from rixcore.common import Protocol, get_local_ip, recv_all_bytes, send_all_bytes
 from rixmsg.standard.ComponentInfo import ComponentInfo
 from rixmsg.standard.ID import ID
 from rixmsg.standard.URI import URI
@@ -96,14 +96,12 @@ class SubscriberTCP(Subscriber):
             pub_id = pub_ids.pop()
             if pub_id.component_id not in self.tcp_clients:
                 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                client.settimeout(1)
                 client.setblocking(False)
 
-                status = -1
                 while not self._shutdown_flag:
                     try:
                         client.connect((pub_id.uri.address.decode("utf-8"), pub_id.uri.port))
-                        client.send(self._get_id().encode())
+                        send_all_bytes(client, self._get_id().encode())
                         self.tcp_clients[pub_id.component_id] = client
                     except socket.timeout:
                         continue
@@ -111,7 +109,7 @@ class SubscriberTCP(Subscriber):
                         if e.errno == errno.EINPROGRESS or e.errno == errno.EALREADY:
                             continue
                         elif e.errno == errno.EISCONN:
-                            client.send(self._get_id().encode())
+                            send_all_bytes(client, self._get_id().encode())
                             self.tcp_clients[pub_id.component_id] = client
                             break
                         logging.error("Unknown error: " + str(e))
@@ -128,14 +126,7 @@ class SubscriberTCP(Subscriber):
 
     def _handle_msg(self) -> None:
         for id in self.tcp_clients:
-            try:
-                data = self.tcp_clients[id].recv(self.TMsg.size())
-            except socket.timeout:
-                continue
-            except Exception as e:
-                if e.errno == errno.EAGAIN or e.errno == errno.EWOULDBLOCK:
-                    continue
-                logging.error("Failed to receive data")
-                break
-            self.callback(self.TMsg.decode(data))
+            data = recv_all_bytes(self.tcp_clients[id], self.TMsg.size())
+            if data is not None:
+                self.callback(self.TMsg.decode(data))
 
