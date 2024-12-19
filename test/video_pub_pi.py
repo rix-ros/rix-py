@@ -8,7 +8,7 @@ import numpy as np
 import threading
 from queue import Queue
 
-from rixcore.common import Protocol, get_local_ip, RIX_HUB_PORT
+from rixcore.common import Protocol, get_public_ip, RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.publisher import Publisher
 from rixmsg.sensor.CompressedImage import CompressedImageTemplate
@@ -46,7 +46,7 @@ def encode_and_publish(queue, jpg_pub, jpg_msg):
 
 def main():
     parser = argparse.ArgumentParser(description='Video Publisher')
-    parser.add_argument('--hub_ip', type=str, default=get_local_ip(), help='Hub IP address')
+    parser.add_argument('--hub_ip', type=str, default=get_public_ip(), help='Hub IP address')
     args = parser.parse_args()
 
     hub_ip = args.hub_ip

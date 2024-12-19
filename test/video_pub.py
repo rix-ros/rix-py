@@ -4,7 +4,7 @@ import time
 import ctypes
 import argparse
 
-from rixcore.common import Protocol, get_local_ip, RIX_HUB_PORT
+from rixcore.common import Protocol, get_public_ip, RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.publisher import Publisher
 from rixmsg.sensor.Image import ImageTemplate
@@ -22,7 +22,7 @@ CompressedImage = CompressedImageTemplate(COMPRESSED_MAX_SIZE)
 
 def main():
     parser = argparse.ArgumentParser(description='Video Publisher')
-    parser.add_argument('--hub_ip', type=str, default=get_local_ip(), help='Hub IP address')
+    parser.add_argument('--hub_ip', type=str, default=get_public_ip(), help='Hub IP address')
     parser.add_argument('--camera', type=int, default=0, help='Camera index')
     args = parser.parse_args()
 

@@ -1,22 +1,22 @@
 import socket
 import sys
-import os
-import time
 import threading
 import logging
 import random
+import os
 import signal
 import errno
+import struct
 
 from time import time_ns, sleep
 
 from rixcore.common import Protocol, CORE_TOPICS, recv_all_bytes, send_all_bytes
-from rixcore.publisher import IPublisher, Publisher, PublisherTCP
-from rixcore.subscriber import ISubscriber, Subscriber, SubscriberTCP
-from rixmsg.standard.Info import Info
-from rixmsg.standard.ComponentInfo import ComponentInfo
-from rixmsg.standard.ID import ID
-from rixmsg.standard.URI import URI
+from rixcore.publisher import Publisher, Publisher, PublisherTCP
+from rixcore.subscriber import Subscriber, Subscriber, SubscriberTCP
+from rixmsg.component.Info import Info
+from rixmsg.component.ComponentInfo import ComponentInfo
+from rixmsg.component.ID import ID
+from rixmsg.component.URI import URI
 
 # Create Node class
 class Node:
@@ -43,11 +43,13 @@ class Node:
         signal.signal(signal.SIGINT, Node._sigint_handler)
         signal.signal(signal.SIGTERM, Node._sigint_handler)
 
+        ROOT = os.path.expanduser("~")
         try:
-            with open('/etc/rix/rix.conf', 'r') as f:
-                self.machine_id = int(f.readline().strip())
-        except:
-            logging.error("Failed to read machine id")
+            with open(ROOT + '/.rix/.machine_id', 'rb') as f:
+                data = f.read()
+                self.machine_id = struct.unpack('Q', data)[0]
+        except Exception as e:
+            logging.error(f"Failed to read machine id: {e}")
             sys.exit(1)
 
         random.seed(None)
@@ -65,8 +67,8 @@ class Node:
                 logging.error("Failed to connect to hub: " + str(e.errno))
                 sys.exit(1)
 
-        self.pubs: dict[str, IPublisher] = {}
-        self.subs: dict[str, ISubscriber] = {}
+        self.pubs: dict[str, Publisher] = {}
+        self.subs: dict[str, Subscriber] = {}
 
         self.spin_thread = None
         self.initialized = True
@@ -193,7 +195,7 @@ class Node:
                 self.__deregister_subscriber(sub)
                 self.subs[sub.component_info.topic.decode("utf-8")].remove(sub)
 
-    def __register_publisher(self, publisher: IPublisher) -> bool:
+    def __register_publisher(self, publisher: Publisher) -> bool:
         info = Info()
         info.error = 0
         info.opcode = CORE_TOPICS['PUB_REGISTER']
@@ -211,7 +213,7 @@ class Node:
         return True
 
 
-    def __register_subscriber(self, subscriber: ISubscriber) -> bool:
+    def __register_subscriber(self, subscriber: Subscriber) -> bool:
         info = Info()
         info.error = 0
         info.opcode = CORE_TOPICS['SUB_REGISTER']
@@ -228,7 +230,7 @@ class Node:
             return False
         return True
 
-    def __deregister_publisher(self, publisher: IPublisher) -> bool:
+    def __deregister_publisher(self, publisher: Publisher) -> bool:
         info = Info()
         info.error = 0
         info.opcode = CORE_TOPICS['PUB_DEREGISTER']
@@ -244,7 +246,7 @@ class Node:
             return False
         return True
 
-    def __deregister_subscriber(self, subscriber: ISubscriber) -> bool:
+    def __deregister_subscriber(self, subscriber: Subscriber) -> bool:
         info = Info()
         info.error = 0
         info.opcode = CORE_TOPICS['SUB_DEREGISTER']
@@ -260,7 +262,7 @@ class Node:
             return False
         return True
 
-    def __handle_pub_notify(self, info: IPublisher) -> None:
+    def __handle_pub_notify(self, info: Publisher) -> None:
         if info.error != 0:
             logging.error("PUB_NOTIFY error: " + str(info.error))
             return
@@ -272,9 +274,9 @@ class Node:
                 return
 
 
-    def __handle_sub_notify(self, info: ISubscriber) -> None:
+    def __handle_sub_notify(self, info: Subscriber) -> None:
         if info.error != 0:
-            logging.error("PUB_NOTIFY error: " + str(info.error))
+            logging.error("SUB_NOTIFY error: " + str(info.error))
             return
         
         topic = info.component_info.topic.decode("utf-8")
@@ -283,14 +285,14 @@ class Node:
                 s._add_publisher(info.contact_id)
                 return
 
-    def __handle_pub_disconnect(self, info: IPublisher) -> None:
+    def __handle_pub_disconnect(self, info: Publisher) -> None:
         topic = info.component_info.topic.decode("utf-8")
         for p in self.pubs[topic]:
             if p.component_info.component_id == info.component_info.component_id:
                 p._remove_subscriber(info.contact_id)
                 return
 
-    def __handle_sub_disconnect(self, info: ISubscriber) -> None:
+    def __handle_sub_disconnect(self, info: Subscriber) -> None:
         topic = info.component_info.topic.decode("utf-8")
         for s in self.subs[topic]:
             if s.component_info.component_id == info.component_info.component_id:

@@ -1,27 +1,27 @@
 import socket
-import sys
-import os
-import time
 import threading
 import logging
 import random
 import errno
 from abc import ABC, abstractmethod
 
-from rixcore.common import Protocol, get_local_ip, recv_all_bytes, send_all_bytes
-from rixmsg.standard.ComponentInfo import ComponentInfo
-from rixmsg.standard.ID import ID
-from rixmsg.standard.URI import URI
+from rixcore.common import Protocol, get_public_ip, recv_all_bytes, send_all_bytes
+from rixmsg.component.ComponentInfo import ComponentInfo
+from rixmsg.component.ID import ID
+from rixmsg.component.URI import URI
 
-class IPublisher(ABC):
+class Publisher(ABC):
     def __init__(self, topic: str, node_id: int, protocol: int, TMsg: any):
+        self.add_sub_set = []
+        self.remove_sub_set = []
+        self.mutex = threading.Lock()
+
         self.component_info = ComponentInfo()
         self.component_info.topic = topic.encode()
         self.component_info.protocol = protocol
         self.component_info.node_id = node_id
         self.component_info.component_id = random.getrandbits(64)
-        self.component_info.msg_hash_a[0] = TMsg.hash()[0]
-        self.component_info.msg_hash_a[1] = TMsg.hash()[1]
+        self.component_info.message_info[0] = TMsg.info()
 
         self.num_subs = 0
         self._shutdown_flag = False
@@ -31,29 +31,6 @@ class IPublisher(ABC):
 
     def shutdown(self):
         self._shutdown_flag = True
-
-    @abstractmethod
-    def _get_id(self) -> ID:
-        pass
-
-    @abstractmethod
-    def _add_subscriber(self, sub_id: ID) -> None:
-        pass
-
-    @abstractmethod
-    def _remove_subscriber(self, sub_id: ID) -> None:
-        pass
-
-    @abstractmethod
-    def _run_once(self) -> None:
-        pass
-
-class Publisher(IPublisher):
-    def __init__(self, topic: str, node_id: int, protocol: int, TMsg: any):
-        super().__init__(topic, node_id, protocol, TMsg)
-        self.add_sub_set = []
-        self.remove_sub_set = []
-        self.mutex = threading.Lock()
 
     def publish(self, msg: any) -> None:
         self.mutex.acquire()
@@ -90,11 +67,15 @@ class Publisher(IPublisher):
     def _remove_subscribers(self, sub_ids) -> None:
         pass
 
+    @abstractmethod
+    def _get_id(self) -> ID:
+        pass
+
 class PublisherTCP(Publisher):
     def __init__(self, topic: str, node_id: int, TMsg: any):
         super().__init__(topic, node_id, Protocol['TCP'], TMsg)
         self.tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.tcp_server.bind((get_local_ip(), 0))
+        self.tcp_server.bind((get_public_ip(), 0))
         self.tcp_server.listen(64)
         self.tcp_server.settimeout(1)
         self.tcp_server.setblocking(False)

@@ -1,4 +1,4 @@
-from rixcore.common import Protocol, get_local_ip, RIX_HUB_PORT
+from rixcore.common import Protocol, get_public_ip, RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.publisher import Publisher
 from rixmsg.standard.Time import Time
@@ -6,7 +6,7 @@ from rixmsg.standard.Time import Time
 from time import time_ns, sleep
 
 node = Node()
-node.init('test', get_local_ip(), RIX_HUB_PORT)
+node.init('test', get_public_ip(), RIX_HUB_PORT)
 pub = node.advertise(Time, 'test_topic', Protocol['TCP'])
 node.spin(False)
 
