@@ -59,7 +59,7 @@ CORE_ERROR_CODES = {
 
 RIX_HUB_PORT = 8000
 
-def get_local_ip() -> str:
+def get_public_ip() -> str:
     try:
         # Create a socket connection to an external server
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

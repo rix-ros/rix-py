@@ -1,0 +1,1 @@
+cp -r rixcore ~/.rix/python/

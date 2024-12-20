@@ -1,27 +1,27 @@
 import socket
-import sys
-import os
-import time
-import threading
 import logging
 import random
 from abc import ABC, abstractmethod
 import errno
 
-from rixcore.common import Protocol, get_local_ip, recv_all_bytes, send_all_bytes
-from rixmsg.standard.ComponentInfo import ComponentInfo
-from rixmsg.standard.ID import ID
-from rixmsg.standard.URI import URI
+from rixcore.common import Protocol, get_public_ip, recv_all_bytes, send_all_bytes
+from rixmsg.component.ComponentInfo import ComponentInfo
+from rixmsg.component.ID import ID
+from rixmsg.component.URI import URI
 
-class ISubscriber(ABC):
-    def __init__(self, topic: str, node_id: int, protocol: int, TMsg: any):
+class Subscriber(ABC):
+    def __init__(self, topic: str, callback: callable, node_id: int, protocol: int, TMsg: any):
+        self.callback = callback
+        self.add_pub_set = []
+        self.remove_pub_set = []
+        self.TMsg = TMsg
+
         self.component_info = ComponentInfo()
         self.component_info.topic = topic.encode()
         self.component_info.protocol = protocol
         self.component_info.node_id = node_id
         self.component_info.component_id = random.getrandbits(64)
-        self.component_info.msg_hash_a[0] = TMsg.hash()[0]
-        self.component_info.msg_hash_a[1] = TMsg.hash()[1]
+        self.component_info.message_info[0] = TMsg.info()
 
         self.num_pubs = 0
         self._shutdown_flag = False
@@ -31,30 +31,6 @@ class ISubscriber(ABC):
 
     def shutdown(self):
         self._shutdown_flag = True
-
-    @abstractmethod
-    def _get_id(self) -> ID:
-        pass
-
-    @abstractmethod
-    def _add_publisher(self, pub_id: ID) -> None:
-        pass
-
-    @abstractmethod
-    def _remove_publisher(self, pub_id: ID) -> None:
-        pass
-
-    @abstractmethod
-    def _run_once(self) -> None:
-        pass
-
-class Subscriber(ISubscriber):
-    def __init__(self, topic: str, callback: callable, node_id: int, protocol: int, TMsg: any):
-        super().__init__(topic, node_id, protocol, TMsg)
-        self.callback = callback
-        self.add_pub_set = []
-        self.remove_pub_set = []
-        self.TMsg = TMsg
 
     def _add_publisher(self, pub_id: ID) -> None:
         self.add_pub_set.append(pub_id)
@@ -79,6 +55,10 @@ class Subscriber(ISubscriber):
 
     @abstractmethod
     def _handle_msg(self) -> None:
+        pass
+
+    @abstractmethod
+    def _get_id(self) -> ID:
         pass
 
 class SubscriberTCP(Subscriber):
