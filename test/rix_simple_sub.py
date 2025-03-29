@@ -1,12 +1,25 @@
-from rixcore.common import Protocol, get_public_ip, RIX_HUB_PORT
+from rixcore.common import RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.subscriber import Subscriber
-from rixmsg.standard.Time import Time
+from rixmsg.standard.Header import Header
 
-def callback(msg: Time) -> None:
-    print(f"Received: {msg.sec}.{msg.nsec}")
 
-node = Node()
-node.init('test', get_public_ip(), RIX_HUB_PORT)
-sub = node.subscribe(Time, 'test_topic', callback, Protocol['TCP'])
-node.spin()
+def callback(msg: Header) -> None:
+    print(f"Received: {msg.frame_id}: {msg.stamp.sec}.{msg.stamp.nsec}")
+
+
+def main():
+    if not Node.init("test", "127.0.0.1", RIX_HUB_PORT):
+        print("Failed to initialize node")
+        return
+
+    sub = Node.subscribe(Header, "test_topic", callback)
+    if sub is None:
+        print("Failed to subscribe")
+        Node.shutdown()
+        return
+    Node.spin(True)
+
+
+if __name__ == "__main__":
+    main()
