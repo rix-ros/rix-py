@@ -10,8 +10,8 @@ from rixmsg.mediator.Operation import Operation
 from rixmsg.mediator.Status import Status
 from rixcore.publisher import Publisher
 from rixcore.subscriber import Subscriber
-
-# from rixcore.service import Service
+from rixcore.service import Service
+from rixcore.service_client import ServiceClient
 
 
 class NodeImpl:
@@ -84,14 +84,14 @@ class NodeImpl:
     def serviceClient(self, impl):
         if self.shutdownFlag:
             return None
-        request = impl.get_request()
+        request = impl.getRequest()
         response = self._requestSrv(request)
         if response is None:
             return None
         ep = (response.srv_info.endpoint.address, response.srv_info.endpoint.port)
-        impl.set_endpoint(ep)
+        impl.setEndpoint(ep)
         client = ServiceClient(impl)
-        self.serviceClients[client.id] = client
+        self.serviceClients[request.id] = client
         return client
 
     def shutdown(self, obj=None):
@@ -273,11 +273,13 @@ class NodeImpl:
         sock = None
         try:
             sock = socket.create_connection((self.hubEp[0], self.hubEp[1]))
-            sent = sock.send(buffer)
+            sock.send(buffer)
 
             statusMsg = Status()
-            rdbuffer = sock.recv(statusMsg.size())
-            statusMsg.deserialize(rdbuffer, {"offset": 0})
+            recvSize = statusMsg.size()
+            rdBuffer = bytearray(recvSize)
+            sock.recv_into(rdBuffer, recvSize)
+            statusMsg.deserialize(rdBuffer, {"offset": 0})
 
             sock.close()
             return statusMsg.error == 0
@@ -293,16 +295,19 @@ class NodeImpl:
             sock.send(buffer)
 
             opMsg = Operation()
-            rdbuffer = sock.recv(opMsg.size())
-            opMsg.deserialize(buffer, {"offset": 0})
+            recvSize = opMsg.size()
+            opMsgBuffer = bytearray(recvSize)
+            sock.recv_into(opMsgBuffer, recvSize)
+            opMsg.deserialize(opMsgBuffer, {"offset": 0})
             recvSize = opMsg.len
-            rdbuffer = sock.recv(recvSize)
+            resBuffer = bytearray(recvSize)
+            sock.recv_into(resBuffer, recvSize)
 
-            responseMsg = SrvResponse()
-            responseMsg.deserialize(rdbuffer, {"offset": 0})
+            res = SrvResponse()
+            res.deserialize(resBuffer, {"offset": 0})
 
             sock.close()
-            return responseMsg
+            return res
         except Exception as e:
             if sock is not None:
                 sock.close()

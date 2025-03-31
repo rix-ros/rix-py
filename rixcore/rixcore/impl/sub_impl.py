@@ -105,12 +105,17 @@ class SubImplTCP(SubImplBase):
         while self.ok():
             try:
                 msgLen = UInt32()
-                buffer = sock.recv(msgLen.size())
-                msgLen.deserialize(buffer, {"offset": 0})
-                buffer = bytearray()
-                while len(buffer) < msgLen.data:
-                    buffer += sock.recv(msgLen.data)
-                self.cb(buffer)
+                recvSize = msgLen.size()
+                msgLenBuffer = bytearray(recvSize)
+                sock.recv_into(msgLenBuffer, recvSize)
+                msgLen.deserialize(msgLenBuffer, {"offset": 0})
+                msgBuffer = bytearray(msgLen.data)
+                bytesRecv = 0
+                while bytesRecv < msgLen.data:
+                    bytesRecv += sock.recv_into(
+                        memoryview(msgBuffer)[bytesRecv:], msgLen.data - bytesRecv
+                    )
+                self.cb(msgBuffer)
             except TimeoutError as e:
                 continue
             except Exception as e:

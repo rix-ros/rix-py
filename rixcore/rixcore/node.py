@@ -6,12 +6,14 @@ import struct
 
 from rixcore.publisher import Publisher
 from rixcore.subscriber import Subscriber
+from rixcore.service import Service
+from rixcore.service_client import ServiceClient
 from rixcore.impl.node_impl import NodeImpl
 from rixcore.impl.pub_impl import PubImplBase, PubImplTCP
 from rixcore.impl.sub_impl import SubImplBase, SubImplTCP
-
-# from rixcore.impl.srv_impl import SrvImplBase, SrvImplTCP
-# from rixcore.impl.srv_cli_impl import SrvCliImplBase, SrvCliImplTCP
+from rixcore.impl.srv_impl import SrvImplBase, SrvImplTCP
+from rixcore.impl.srv_cli_impl import SrvCliImplBase, SrvCliImplTCP
+from rixmsg.standard.UInt32 import UInt32
 
 
 class Node:
@@ -73,36 +75,39 @@ class Node:
         subImpl = TImpl(subID, Node._impl.info.id, topic, msgHash, _cb)
         return Node._impl.subscribe(subImpl)
 
-    # @staticmethod
-    # def advertiseService(
-    #     TReq: any, TRes: any, srvName: str, cb: callable, TImpl=SrvImplTCP
-    # ) -> Service:
-    #     srvID = Node._generateID()
-    #     reqHash = TReq().hash()
-    #     resHash = TRes().hash()
+    @staticmethod
+    def advertiseService(
+        TReq: any, TRes: any, srvName: str, cb: callable, TImpl=SrvImplTCP
+    ) -> Service:
+        srvID = Node._generateID()
+        reqHash = TReq().hash()
+        resHash = TRes().hash()
 
-    #     def _cb(obj):
-    #         req = TReq()
-    #         req.deserialize(obj['request'], {'offset': 0})
-    #         srvInput = {'request': req, 'response': None}
-    #         cb(srvInput)
-    #         obj['response'] = bytearray()
-    #         srvInput['response'].serialize(obj['response'])
+        def _cb(reqBuffer) -> bytearray | None:
+            req = TReq()
+            req.deserialize(reqBuffer, {"offset": 0})
+            res = cb(req)
+            resBuffer = bytearray()
+            sizeMsg = UInt32()
+            sizeMsg.data = res.size()
+            sizeMsg.serialize(resBuffer)
+            res.serialize(resBuffer)
+            return resBuffer
 
-    #     srvImpl = SrvImplTCP(srvID, Node._impl.info.id, srvName, reqHash, resHash, _cb)
-    #     return Node._impl.advertiseService(srvImpl)
+        srvImpl = SrvImplTCP(srvID, Node._impl.info.id, srvName, reqHash, resHash, _cb)
+        return Node._impl.advertiseService(srvImpl)
 
-    # @staticmethod
-    # def serviceClient(
-    #     TReq: any, TRes: any, srvName: str, TImpl=SrvCliImplTCP
-    # ) -> ServiceClient:
-    #     srvCliID = Node._generateID()
-    #     reqHash = TReq().hash()
-    #     resHash = TRes().hash()
-    #     srvCliImpl = SrvCliImplTCP(
-    #         srvCliID, Node._impl.info.id, srvName, reqHash, resHash
-    #     )
-    #     return Node._impl.serviceClient(srvCliImpl)
+    @staticmethod
+    def serviceClient(
+        TReq: any, TRes: any, srvName: str, TImpl=SrvCliImplTCP
+    ) -> ServiceClient:
+        srvCliID = Node._generateID()
+        reqHash = TReq().hash()
+        resHash = TRes().hash()
+        srvCliImpl = SrvCliImplTCP(
+            srvCliID, Node._impl.info.id, srvName, reqHash, resHash
+        )
+        return Node._impl.serviceClient(srvCliImpl)
 
     @staticmethod
     def _sigint_handler(sig, frame):

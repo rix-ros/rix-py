@@ -13,7 +13,7 @@ class Publisher:
         if not self.ok():
             return ""
         self.mutex.acquire()
-        topic = self.impl.get_info().topic_info.name
+        topic = self.impl.getInfo().topic_info.name
         self.mutex.release()
         return topic
 
