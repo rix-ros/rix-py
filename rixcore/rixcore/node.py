@@ -118,7 +118,7 @@ class Node:
 
     @staticmethod
     def _getMachineID() -> int | None:
-        ROOT = os.path.expanduser("~")
+        ROOT = os.getenv("HOME", os.path.expanduser("~"))
         machine_id_path = ROOT + "/.rix/.machine_id"
         try:
             if not os.path.exists(machine_id_path):
@@ -131,7 +131,7 @@ class Node:
                 return struct.unpack("Q", data)[0]
         except Exception as e:
             logging.error(f"Failed to read machine id: {e}")
-            return None
+            return 0
 
     @staticmethod
     def _generateID() -> int:

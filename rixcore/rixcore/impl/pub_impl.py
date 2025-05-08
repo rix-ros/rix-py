@@ -15,7 +15,7 @@ class PubImplBase(ABC):
         self.info.id = id
         self.info.node_id = nodeID
         self.info.topic_info.name = topic
-        self.info.topic_info.message_hash.value = msgHash
+        self.info.topic_info.message_hash = msgHash
         self.info.protocol = protocol
 
     def shutdown(self):

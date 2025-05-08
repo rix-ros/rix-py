@@ -24,8 +24,8 @@ class SrvCliImplBase(ABC):
         self.request.node_id = nodeID
         self.request.name = service
         self.request.protocol = protocol
-        self.request.request_hash.value = reqHash
-        self.request.response_hash.value = resHash
+        self.request.request_hash = reqHash
+        self.request.response_hash = resHash
         self.shutdownFlag = False
 
     @abstractmethod

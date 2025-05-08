@@ -23,8 +23,8 @@ class SrvImplBase(ABC):
         self.info.id = id
         self.info.node_id = nodeID
         self.info.name = service
-        self.info.response_hash.value = resHash
-        self.info.request_hash.value = reqHash
+        self.info.response_hash = resHash
+        self.info.request_hash = reqHash
         self.info.protocol = protocol
         self.cb = cb
         self.shutdownFlag = False
