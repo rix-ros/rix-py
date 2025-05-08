@@ -15,7 +15,7 @@ def alphabet(req: UInt32) -> String:
 
 
 def main():
-    if not Node.init("simple_srv", "127.0.0.1", RIX_HUB_PORT):
+    if not Node.init("simple_srv", "127.0.0.1"):
         print("Failed to initialize node")
         return
 

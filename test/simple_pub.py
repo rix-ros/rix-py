@@ -1,4 +1,3 @@
-from rixcore.common import RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.publisher import Publisher
 from rixmsg.standard.Header import Header
@@ -7,7 +6,7 @@ from time import time_ns, sleep
 
 
 def main():
-    if not Node.init("test", "127.0.0.1", RIX_HUB_PORT):
+    if not Node.init("test", "127.0.0.1"):
         print("Failed to initialize node")
         return
 

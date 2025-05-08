@@ -1,4 +1,3 @@
-from rixcore.common import RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.subscriber import Subscriber
 from rixmsg.standard.Header import Header
@@ -9,7 +8,7 @@ def callback(msg: Header) -> None:
 
 
 def main():
-    if not Node.init("test", "127.0.0.1", RIX_HUB_PORT):
+    if not Node.init("test", "127.0.0.1"):
         print("Failed to initialize node")
         return
 

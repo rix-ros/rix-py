@@ -1,4 +1,3 @@
-from rixcore.common import RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.service_client import ServiceClient
 from rixmsg.standard.String import String
@@ -7,7 +6,7 @@ from time import sleep
 
 
 def main():
-    if not Node.init("simple_srv_cli", "127.0.0.1", RIX_HUB_PORT):
+    if not Node.init("simple_srv_cli", "127.0.0.1"):
         print("Failed to initialize node")
         return
 

@@ -21,7 +21,7 @@ class Node:
     _initialized = False
 
     @staticmethod
-    def init(name: str, hubIP: str, hubPort: int) -> bool:
+    def init(name: str, hubIP: str) -> bool:
         if Node._initialized:
             logging.error("Node already initialized")
             return False
@@ -40,7 +40,7 @@ class Node:
         machineID = Node._getMachineID()
 
         Node._impl = NodeImpl()
-        Node._initialized = Node._impl.init(nodeID, machineID, name, hubIP, hubPort)
+        Node._initialized = Node._impl.init(nodeID, machineID, name, hubIP)
         return Node._initialized
 
     @staticmethod

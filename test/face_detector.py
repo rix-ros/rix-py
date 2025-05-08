@@ -4,7 +4,6 @@ import numpy as np
 import argparse
 from threading import Lock
 
-from rixcore.common import RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.publisher import Publisher
 from rixmsg.sensor.CompressedImage import CompressedImage
@@ -33,7 +32,7 @@ def main():
     args = parser.parse_args()
 
     hubIP = args.ip
-    if not Node.init("video_sub", hubIP, RIX_HUB_PORT):
+    if not Node.init("video_sub", hubIP):
         print("Failed to initialize node")
         return
 

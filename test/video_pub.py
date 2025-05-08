@@ -2,7 +2,6 @@ import cv2
 import time
 import argparse
 
-from rixcore.common import RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.publisher import Publisher
 from rixmsg.sensor.Image import Image
@@ -21,7 +20,7 @@ def main():
     hubIP = args.ip
     camIndex = args.camera
 
-    Node.init("video_pub", hubIP, RIX_HUB_PORT)
+    Node.init("video_pub", hubIP)
     pub = Node.advertise(CompressedImage, "video")
 
     Node.spin(False)

@@ -32,7 +32,7 @@ def main():
     args = parser.parse_args()
 
     hubIP = args.ip
-    if not Node.init("video_sub", hubIP, RIX_HUB_PORT):
+    if not Node.init("video_sub", hubIP):
         print("Failed to initialize node")
         return
 

@@ -1,6 +1,6 @@
 import socket
 import threading
-from rixcore.common import PROTOCOL, OPCODE
+from rixcore.common import PROTOCOL, OPCODE, RIX_HUB_PORT
 from rixmsg.mediator.NodeInfo import NodeInfo
 from rixmsg.mediator.PubNotify import PubNotify
 from rixmsg.mediator.SubNotify import SubNotify
@@ -26,7 +26,7 @@ class NodeImpl:
         self.services = {}
         self.serviceClients = {}
 
-    def init(self, id, machineId, name, hubIP, hubPort):
+    def init(self, id, machineId, name, hubIP):
         self.server = socket.create_server(("", 0))
         self.server.settimeout(0.25)
         self.info = NodeInfo()
@@ -37,7 +37,7 @@ class NodeImpl:
         ep = self.server.getsockname()
         self.info.endpoint.address = ep[0]
         self.info.endpoint.port = ep[1]
-        self.hubEp = (hubIP, hubPort)
+        self.hubEp = (hubIP, RIX_HUB_PORT)
 
         if not self._registerNode():
             return False
