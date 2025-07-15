@@ -119,5 +119,6 @@ class SubImplTCP(SubImplBase):
             except TimeoutError as e:
                 continue
             except Exception as e:
+                print(e)
                 break
         sock.close()
