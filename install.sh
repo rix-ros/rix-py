@@ -25,5 +25,5 @@ fi
 echo "Installing rix-py"
 source ~/.rix/venv/bin/activate
 pip install -e ~/.rix/python/rixmsg
-pip install ~/.rix/python/rixcore
+pip install -e ~/.rix/python/rixcore
 deactivate
