@@ -18,6 +18,7 @@ def storeFrame(msg: "CompressedImage") -> None:
     frame_mutex.acquire()
     arr = np.array(msg.data, dtype=np.uint8)
     frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     frame_mutex.release()
     if frame is None:
         print("Error decoding frame")
@@ -36,7 +37,7 @@ def main():
         print("Failed to initialize node")
         return
 
-    sub = Node.subscribe(CompressedImage, "video", storeFrame)
+    sub = Node.subscribe(CompressedImage, "cam/rear/jpg", storeFrame)
     if sub is None:
         print("Failed to subscribe to video")
         return
@@ -62,7 +63,7 @@ def main():
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
-        cv2.destroyAllWindows()
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
