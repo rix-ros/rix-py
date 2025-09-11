@@ -8,16 +8,13 @@ def callback(msg: Header) -> None:
 
 
 def main():
-    if not Node.init("test", "127.0.0.1"):
-        print("Failed to initialize node")
+    node = Node.create("simple_subscriber")
+    sub = node.create_subscriber(Header, "/chatter", callback)
+    if not sub.ok():
+        print("Error! Failed to advertise subscriber.")
         return
 
-    sub = Node.subscribe(Header, "test_topic", callback)
-    if sub is None:
-        print("Failed to subscribe")
-        Node.shutdown()
-        return
-    Node.spin(True)
+    node.spin()
 
 
 if __name__ == "__main__":
