@@ -1,9 +1,9 @@
+import face_recognition
 import cv2
 import numpy as np
 import argparse
 from threading import Lock
 
-from rixcore.common import RIX_HUB_PORT
 from rixcore.node import Node
 from rixcore.publisher import Publisher
 from rixmsg.sensor.CompressedImage import CompressedImage
@@ -18,6 +18,7 @@ def storeFrame(msg: "CompressedImage") -> None:
     frame_mutex.acquire()
     arr = np.array(msg.data, dtype=np.uint8)
     frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     frame_mutex.release()
     if frame is None:
         print("Error decoding frame")
@@ -36,7 +37,7 @@ def main():
         print("Failed to initialize node")
         return
 
-    sub = Node.subscribe(CompressedImage, "video", storeFrame)
+    sub = Node.subscribe(CompressedImage, "cam/rear/jpg", storeFrame)
     if sub is None:
         print("Failed to subscribe to video")
         return
@@ -46,7 +47,17 @@ def main():
     while Node.ok():
         frame_mutex.acquire()
         if frame is not None:
-            cv2.imshow("video", frame)
+            small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+            rgb_frame = small_frame[:, :, ::-1]
+            face_locations = face_recognition.face_locations(rgb_frame)
+
+            for top, right, bottom, left in face_locations:
+                top *= 4
+                right *= 4
+                bottom *= 4
+                left *= 4
+                cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+            cv2.imshow("Video", frame)
         frame_mutex.release()
 
         if cv2.waitKey(1) & 0xFF == ord("q"):

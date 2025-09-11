@@ -1,112 +1,111 @@
+import threading
 import socket
-import logging
-import random
-from abc import ABC, abstractmethod
-import errno
+import select
+from typing import Tuple
 
-from rixcore.common import Protocol, get_public_ip, recv_all_bytes, send_all_bytes
-from rixmsg.component.ComponentInfo import ComponentInfo
-from rixmsg.component.ID import ID
-from rixmsg.component.URI import URI
+from rixcore.common import (
+    send_message_with_opcode,
+    send_message_with_opcode_no_response,
+    OPCODE,
+)
+from rixmsg.standard.UInt32 import UInt32
+from rixmsg.mediator.Operation import Operation
+from rixmsg.mediator.SubInfo import SubInfo
+from rixmsg.mediator.PubInfo import PubInfo
+from rixmsg.mediator.SubNotify import SubNotify
 
-class Subscriber(ABC):
-    def __init__(self, topic: str, callback: callable, node_id: int, protocol: int, TMsg: any):
-        self.callback = callback
-        self.add_pub_set = []
-        self.remove_pub_set = []
-        self.TMsg = TMsg
 
-        self.component_info = ComponentInfo()
-        self.component_info.topic = topic.encode()
-        self.component_info.protocol = protocol
-        self.component_info.node_id = node_id
-        self.component_info.component_id = random.getrandbits(64)
-        self.component_info.message_info[0] = TMsg.info()
+class Subscriber:
+    def __init__(
+        self,
+        info: SubInfo,
+        server: socket.socket,
+        rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", 0),
+    ):
+        self.shutdown_flag = False
+        self.info = info
+        self.server = server
+        self.clients = set()
+        self.callback = None
+        self.callback_mutex = threading.Lock()
+        self.rixhub_endpoint = rixhub_endpoint
 
-        self.num_pubs = 0
-        self._shutdown_flag = False
+        client = socket.create_connection(self.rixhub_endpoint)
+        if not send_message_with_opcode(client, self.info, OPCODE.SUB_REGISTER):
+            self.shutdown()
 
-    def get_num_publishers(self) -> int:
-        return self.num_pubs
+    def __del__(self):
+        self.shutdown()
+        client = socket.create_connection(self.rixhub_endpoint)
+        send_message_with_opcode_no_response(client, self.info, OPCODE.SUB_DEREGISTER)
 
-    def shutdown(self):
-        self._shutdown_flag = True
+    def ok(self) -> bool:
+        return not self.shutdown_flag
 
-    def _add_publisher(self, pub_id: ID) -> None:
-        self.add_pub_set.append(pub_id)
-    
-    def _remove_publisher(self, pub_id: ID) -> None:
-        self.remove_pub_set.append(pub_id)
+    def set_callback(self, TMsg, callback: callable):
+        def callback_serialized(buffer: bytearray):
+            msg = TMsg()
+            msg.deserialize(buffer, {"offset": 0})
+            callback(msg)
 
-    def _run_once(self) -> None:
-        if len(self.add_pub_set) > 0:
-            self._connect_publishers(self.add_pub_set)
-        if len(self.remove_pub_set) > 0:
-            self._remove_publishers(self.remove_pub_set)
-        self._handle_msg()
+        self.callback = callback_serialized
 
-    @abstractmethod
-    def _connect_publishers(self, pub_id: set[ID]) -> None:
-        pass
+    def shutdown(self) -> None:
+        self.shutdown_flag = True
 
-    @abstractmethod
-    def _remove_publishers(self, pub_id: set[ID]) -> None:
-        pass
+    def _spin_once(self) -> None:
+        readable, _, _ = select.select([self.server], [], [], 0.0)
+        if self.server in readable:
+            conn, _ = self.server.accept()
+            # Receive SubNotify message and connect to publishers
+            op = Operation()
+            recvSize = op.size()
+            opBuffer = bytearray(recvSize)
+            conn.recv_into(opBuffer, recvSize)
+            op.deserialize(opBuffer, {"offset": 0})
+            msgBuffer = bytearray(op.len)
+            bytesRecv = conn.recv_into(memoryview(msgBuffer), op.len)
 
-    @abstractmethod
-    def _handle_msg(self) -> None:
-        pass
-
-    @abstractmethod
-    def _get_id(self) -> ID:
-        pass
-
-class SubscriberTCP(Subscriber):
-    def __init__(self, topic: str, callback: callable, node_id: int, TMsg: any):
-        super().__init__(topic, callback, node_id, Protocol['TCP'], TMsg)
-        self.tcp_clients = {}
-
-    def _get_id(self) -> ID:
-        id = ID()
-        id.component_id = self.component_info.component_id
-        return id
-    
-    def _connect_publishers(self, pub_ids: set[ID]) -> None:
-        while len(pub_ids) > 0:
-            pub_id = pub_ids.pop()
-            if pub_id.component_id not in self.tcp_clients:
-                client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sub_notify = SubNotify()
+            sub_notify.deserialize(msgBuffer, {"offset": 0})
+            for pub in sub_notify.publishers:
+                client = socket.socket()
                 client.setblocking(False)
+                try:
+                    client.connect((pub.endpoint.address, pub.endpoint.port))
+                except Exception as e:
+                    pass
+                self.clients.add(client)
 
-                while not self._shutdown_flag:
-                    try:
-                        client.connect((pub_id.uri.address.decode("utf-8"), pub_id.uri.port))
-                        send_all_bytes(client, self._get_id().encode())
-                        self.tcp_clients[pub_id.component_id] = client
-                    except socket.timeout:
+        self.callback_mutex.acquire()
+        to_remove = []
+        for client in self.clients:
+            readable, _, _ = select.select([client], [], [], 0.0)
+            if client in readable:
+                try:
+                    msgLen = UInt32()
+                    recvSize = msgLen.size()
+                    msgLenBuffer = bytearray(recvSize)
+                    bytesRecv = client.recv_into(msgLenBuffer, recvSize)
+                    if bytesRecv <= 0:
+                        to_remove.append(client)
                         continue
-                    except Exception as e:
-                        if e.errno == errno.EINPROGRESS or e.errno == errno.EALREADY:
-                            continue
-                        elif e.errno == errno.EISCONN:
-                            send_all_bytes(client, self._get_id().encode())
-                            self.tcp_clients[pub_id.component_id] = client
-                            break
-                        logging.error("Unknown error: " + str(e))
-                        break
-        self.num_pubs = len(self.tcp_clients)
 
-    def _remove_publishers(self, pub_ids: set[ID]) -> None:
-        for pub_id in pub_ids:
-            if pub_id.component_id in self.tcp_clients:
-                self.tcp_clients[pub_id.component_id].close()
-                del self.tcp_clients[pub_id.component_id]
-        pub_ids.clear()
-        self.num_pubs = len(self.tcp_clients)
+                    msgLen.deserialize(msgLenBuffer, {"offset": 0})
+                    msgBuffer = bytearray(msgLen.data)
+                    bytesRecv = 0
+                    while bytesRecv < msgLen.data:
+                        bytesRecv += client.recv_into(
+                            memoryview(msgBuffer)[bytesRecv:], msgLen.data - bytesRecv
+                        )
+                    if self.callback is not None:
+                        self.callback(msgBuffer)
+                except TimeoutError as e:
+                    continue
+                except Exception as e:
+                    continue
 
-    def _handle_msg(self) -> None:
-        for id in self.tcp_clients:
-            data = recv_all_bytes(self.tcp_clients[id], self.TMsg.size())
-            if data is not None:
-                self.callback(self.TMsg.decode(data))
+        for client in to_remove:
+            self.clients.remove(client)
 
+        self.callback_mutex.release()

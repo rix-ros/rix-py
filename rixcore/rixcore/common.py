@@ -1,112 +1,109 @@
 import socket
-import errno
+from enum import IntEnum
+from typing import Tuple
 
-Protocol = {
-    'TCP': 0x01,
-    'UDP': 0x02,
-    'SHM': 0x04,
-    'WEB': 0x08,
-    'WEB2': 0x10
-}
+from rixmsg.mediator.Operation import Operation
+from rixmsg.mediator.Status import Status
+from rixmsg.standard.UInt32 import UInt32
 
-CORE_TOPICS = {
-    'PING': 70,
-    'PONG': 71,
-    'SUB_REGISTER': 80,
-    'PUB_REGISTER': 81,
-    'SRV_REGISTER': 82,
-    'ACT_REGISTER': 83,
-    'SUB_NOTIFY': 90,
-    'PUB_NOTIFY': 91,
-    'SRV_NOTIFY': 92,
-    'ACT_NOTIFY': 93,
-    'SUB_DEREGISTER': 100,
-    'PUB_DEREGISTER': 101,
-    'SRV_DEREGISTER': 102,
-    'ACT_DEREGISTER': 103,
-    'SUB_DISCONNECT': 110,
-    'PUB_DISCONNECT': 111,
-    'SRV_DISCONNECT': 112,
-    'ACT_DISCONNECT': 113,
-    'SUB_REQUEST': 120,
-    'SUB_RESPONSE': 121,
-    'PUB_RESPONSE': 130,
-    'SRV_REQUEST': 140,
-    'SRV_RESPONSE': 141,
-    'ACT_REQUEST': 150,
-    'ACT_RESPONSE': 151,
-    'MED_TERMINATE': 160
-}
+RIXHUB_PORT = 48104
+MACHINE_ID_FILE = "~/.rix/machine_id"
 
-CORE_ERROR_CODES = {
-    'NO_ERROR': 0,
-    'WRONG_MSG_TYPE': 1,
-    'WRONG_REQ_TYPE': 2,
-    'WRONG_RES_TYPE': 3,
-    'WRONG_TOPIC': 4,
-    'EMPTY_TOPIC': 5,
-    'EMPTY_SRV': 6,
-    'EMPTY_ACT': 7,
-    'MULTICAST_EXISTS': 8,
-    'SHMEM_EXISTS': 9,
-    'PUB_EXISTS': 10,
-    'SUB_EXISTS': 11,
-    'SRV_EXISTS': 12,
-    'SRV_NOT_FOUND': 13,
-    'ACT_EXISTS': 14,
-    'ACT_NOT_FOUND': 15
-}
+class OPCODE(IntEnum):
+    NODE_REGISTER = 80
+    SUB_REGISTER = 81
+    PUB_REGISTER = 82
+    SRV_REGISTER = 83
+    ACT_REGISTER = 84
 
-RIX_HUB_PORT = 8000
+    SUB_NOTIFY = 90
 
-def get_public_ip() -> str:
+    NODE_DEREGISTER = 100
+    SUB_DEREGISTER = 101
+    PUB_DEREGISTER = 102
+    SRV_DEREGISTER = 103
+    ACT_DEREGISTER = 104
+
+    SRV_REQUEST = 140
+    ACT_REQUEST = 141
+    PARAM_SET_REQUEST = 142
+    PARAM_GET_REQUEST = 143
+    SYSTEM_GET_REQUEST = 144
+
+    SRV_RESPONSE = 150
+    ACT_RESPONSE = 151
+    TERMINATE = 160
+
+
+def send_message_with_opcode_no_response(
+    client: socket.socket, msg: any, opcode: int
+) -> bool:
+    op = Operation()
+    op.opcode = opcode
+    op.len = msg.size()
+    buffer = bytearray()
+    op.serialize(buffer)
+    msg.serialize(buffer)
     try:
-        # Create a socket connection to an external server
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # Connect to a public DNS server (Google's DNS server)
-        s.connect(("8.8.8.8", 80))
-        # Get the IP address of the machine
-        ip_address = s.getsockname()[0]
-        s.close()
-        return ip_address
+        sent = client.send(buffer)
     except Exception as e:
-        return str(e)
-    
-def recv_all_bytes(sock, size: int, block: bool = False) -> bytes:
-    data = b''
-    while len(data) < size:
-        try:
-            packet = sock.recv(size - len(data))
-            if not packet:
-                # Connection closed
-                return None
-            data += packet
-        except socket.timeout:
-            if block:
-                continue
-            elif len(data) == 0:
-                return None
-            else:
-                continue
-        except socket.error as e:
-            if len(data) == 0:
-                if block:
-                    continue
-                return None
-            elif len(data) > 0 and (e.errno == errno.EAGAIN or e.errno == errno.EWOULDBLOCK):
-                continue
-            return None
-    return data
+        return False
+    return True
 
-def send_all_bytes(sock, data: bytes) -> bool:
-    total_sent = 0
-    total_size = len(data)
-    while total_sent < total_size:
-        try:
-            status = sock.send(data[total_sent:])
-            total_sent += status
-        except socket.error as e:
-            if e.errno == errno.EAGAIN or e.errno == errno.EWOULDBLOCK:
-                continue
-            return False
+
+def send_message_with_opcode(
+    client: socket.socket, msg: any, opcode: int
+) -> bool:
+    if not send_message_with_opcode_no_response(client, msg, opcode):
+        return False
+
+    status = Status()
+    msgLen = status.size()
+    msgBuffer = bytearray(msgLen)
+    client.recv_into(memoryview(msgBuffer), msgLen)
+    status.deserialize(msgBuffer, {"offset": 0})
+    if status.error != 0:
+        return False
+    return True
+
+def send_message_with_opcode_and_response(
+    client: socket.socket, in_msg: any, out_msg: any, opcode: int
+) -> bool:
+    if not send_message_with_opcode_no_response(client, in_msg, opcode):
+        return False
+
+    sizeMsg = UInt32()
+    msgLen = sizeMsg.size()
+    msgBuffer = bytearray(msgLen)
+    client.recv_into(memoryview(msgBuffer), msgLen)
+    sizeMsg.deserialize(msgBuffer, {"offset": 0})
+    
+    msgBuffer = bytearray(sizeMsg.data)
+    client.recv_into(memoryview(msgBuffer), sizeMsg.data)
+    out_msg.deserialize(msgBuffer, {"offset": 0})
+    return True
+
+def send_opcode_with_response(
+    client: socket.socket, out_msg: any, opcode: int
+) -> bool:
+    op = Operation()
+    op.opcode = opcode
+    op.len = 0
+    buffer = bytearray()
+    op.serialize(buffer)
+    try:
+        sent = client.send(buffer)
+    except Exception as e:
+        return False
+    
+    sizeMsg = UInt32()
+    msgLen = sizeMsg.size()
+    msgBuffer = bytearray(msgLen)
+    client.recv_into(memoryview(msgBuffer), msgLen)
+    sizeMsg.deserialize(msgBuffer, {"offset": 0})
+    
+    msgBuffer = bytearray(sizeMsg.data)
+    client.recv_into(memoryview(msgBuffer), sizeMsg.data)
+    out_msg.deserialize(msgBuffer, {"offset": 0})
+
     return True

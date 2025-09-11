@@ -1,300 +1,208 @@
-import socket
-import sys
-import threading
-import logging
 import random
 import os
 import signal
-import errno
 import struct
+import socket
+from typing import Tuple
 
-from time import time_ns, sleep
+from rixcore.common import (
+    RIXHUB_PORT,
+    send_message_with_opcode,
+    send_message_with_opcode_no_response,
+    send_message_with_opcode_and_response,
+    send_opcode_with_response,
+    OPCODE,
+)
+from rixmsg.mediator.PubInfo import PubInfo
+from rixmsg.mediator.SubInfo import SubInfo
+from rixmsg.mediator.SrvInfo import SrvInfo
+from rixmsg.mediator.SrvRequest import SrvRequest
+from rixmsg.mediator.ParamInfo import ParamInfo
+from rixmsg.mediator.SystemInfo import SystemInfo
+from rixcore.publisher import Publisher
+from rixcore.subscriber import Subscriber
+from rixcore.service import Service
+from rixcore.service_client import ServiceClient
+from rixmsg.mediator.NodeInfo import NodeInfo
 
-from rixcore.common import Protocol, CORE_TOPICS, recv_all_bytes, send_all_bytes
-from rixcore.publisher import Publisher, Publisher, PublisherTCP
-from rixcore.subscriber import Subscriber, Subscriber, SubscriberTCP
-from rixmsg.component.Info import Info
-from rixmsg.component.ComponentInfo import ComponentInfo
-from rixmsg.component.ID import ID
-from rixmsg.component.URI import URI
 
-# Create Node class
 class Node:
-    _instance = None
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(Node, cls).__new__(cls)
-        return cls._instance
-    
+    _impl = None  # static NodeImpl
+    _initialized = False
+
+    @staticmethod
+    def create(
+        name: str, rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", RIXHUB_PORT)
+    ) -> "Node":
+        info = NodeInfo()
+        info.id = Node._generateID()
+        info.machine_id = Node._getMachineID()
+        info.name = name
+
+        return Node(info, rixhub_endpoint)
+
+    def __init__(
+        self,
+        info: NodeInfo,
+        rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", RIXHUB_PORT),
+    ):
+        self.info = info
+        self.rixhub_endpoint = rixhub_endpoint
+        self.shutdown_flag = False
+        self.components = set()
+
+        client = socket.create_connection(self.rixhub_endpoint)
+        if not send_message_with_opcode(
+            client, self.info, OPCODE.NODE_REGISTER
+        ):
+            self.shutdown()
+
     def __del__(self):
         self.shutdown()
+        client = socket.create_connection(self.rixhub_endpoint)
+        send_message_with_opcode_no_response(
+            client, self.info, OPCODE.NODE_DEREGISTER
+        )
 
-    def init(self, name: str, hub_ip: str, hub_port: int):
-        self.name = name
-        self.hub_ip = hub_ip
-        self.hub_port = hub_port
-        self.mutex = threading.Lock()
-        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._shutdown_flag = False
-
-        logging.basicConfig(level=logging.INFO, format=f'[%(asctime)s] [%(levelname)s] [{self.name}] %(message)s')
-
-        # Set the signal handler for SIGINT and SIGTERM
-        signal.signal(signal.SIGINT, Node._sigint_handler)
-        signal.signal(signal.SIGTERM, Node._sigint_handler)
-
-        ROOT = os.path.expanduser("~")
+    def spin(self) -> None:
         try:
-            with open(ROOT + '/.rix/.machine_id', 'rb') as f:
-                data = f.read()
-                self.machine_id = struct.unpack('Q', data)[0]
-        except Exception as e:
-            logging.error(f"Failed to read machine id: {e}")
-            sys.exit(1)
+            while self.ok():
+                remove_list = []
+                for component in self.components:
+                    if not component.ok():
+                        remove_list.append(component)
+                        continue
+                    component._spin_once()
+                for component in remove_list:
+                    self.components.remove(component)
+        except KeyboardInterrupt as e:
+            self.shutdown()
 
-        random.seed(None)
-        self.node_id = random.getrandbits(64)
+    def shutdown(
+        self,
+    ) -> None:
+        self.shutdown_flag = True
 
-        self.client.setblocking(False)
-        while True:
-            try:
-                self.client.connect((self.hub_ip, self.hub_port))
-            except Exception as e:
-                if e.errno == errno.EINPROGRESS or e.errno == errno.EALREADY:
-                    continue
-                elif e.errno == errno.EISCONN:
-                    break
-                logging.error("Failed to connect to hub: " + str(e.errno))
-                sys.exit(1)
+    def ok(
+        self,
+    ) -> bool:
+        return not self.shutdown_flag
 
-        self.pubs: dict[str, Publisher] = {}
-        self.subs: dict[str, Subscriber] = {}
+    def create_publisher(
+        self, TMsg: any, topic: str, endpoint: Tuple[str, int] = ("127.0.0.1", 0)
+    ) -> Publisher:
+        info = PubInfo()
+        info.id = Node._generateID()
+        info.node_id = self.info.id
+        info.topic_info.name = topic
+        info.topic_info.message_hash = TMsg().hash()
 
-        self.spin_thread = None
-        self.initialized = True
+        server = socket.create_server(endpoint)
+        server_endpoint = server.getsockname()
+        info.endpoint.address = server_endpoint[0]
+        info.endpoint.port = server_endpoint[1]
 
-    def spin(self, block: bool = True) -> None:
-        if not self.initialized:
-            logging.error("Node not initialized")
-            return
-        if self.spin_thread is not None:
-            logging.error("Spin thread already running")
-            return
-        
-        self.spin_thread = threading.Thread(target=self.__run)
-        self.spin_thread.start()
-        if block:
-            self.spin_thread.join()
-
-    def shutdown(self):
-        self._shutdown_flag = True
-
-        # Get this thread's ID
-        current_thread = threading.current_thread()
-        if current_thread != self.spin_thread and self.spin_thread.is_alive():
-            self.spin_thread.join()
-
-        for topic in self.pubs:
-            for pub in self.pubs[topic]:
-                self.__deregister_publisher(pub)
-        self.pubs.clear()
-            
-        for topic in self.subs:
-            for sub in self.subs[topic]:
-                self.__deregister_subscriber(sub)
-        self.subs.clear()
-    
-        self.client.close()
-
-    def ok(self):
-        return not self._shutdown_flag
-    
-    def advertise(self, TMsg: any, topic: str, protocol: int) -> Publisher:
-        pub = None
-        if protocol == Protocol['TCP']:
-            pub = PublisherTCP(topic, self.node_id, TMsg)
-        else:
-            logging.error("Invalid protocol")
-            return None
-        
-        if (not self.__register_publisher(pub)):
-            logging.error("Failed to register publisher")
-            return None
-
-        if self.pubs.get(topic) is None:
-            self.pubs[topic] = []
-        
-        self.pubs[topic].append(pub)
-        logging.info("Advertised topic: " + topic)
+        pub = Publisher(info, server, self.rixhub_endpoint)
+        self.components.add(pub)
         return pub
 
-    def subscribe(self, TMsg: any, topic: str, cb: callable, protocol: int) -> Subscriber:
-        sub = None
-        if protocol == Protocol['TCP']:
-            sub = SubscriberTCP(topic, cb, self.node_id, TMsg)
-        else:
-            logging.error("Invalid protocol")
-            return None
-        
-        if (not self.__register_subscriber(sub)):
-            logging.error("Failed to register subscriber")
-            return None
+    def create_subscriber(
+        self,
+        TMsg: any,
+        topic: str,
+        cb: callable,
+        endpoint: Tuple[str, int] = ("127.0.0.1", 0),
+    ) -> Subscriber:
+        info = SubInfo()
+        info.id = Node._generateID()
+        info.node_id = self.info.id
+        info.topic_info.name = topic
+        info.topic_info.message_hash = TMsg().hash()
 
-        if self.subs.get(topic) is None:
-            self.subs[topic] = []
-        
-        self.subs[topic].append(sub)
-        logging.info("Subscribed to topic: " + topic)
+        server = socket.create_server(endpoint)
+        server_endpoint = server.getsockname()
+        info.endpoint.address = server_endpoint[0]
+        info.endpoint.port = server_endpoint[1]
+
+        sub = Subscriber(info, server, self.rixhub_endpoint)
+        sub.set_callback(TMsg, cb)
+        self.components.add(sub)
         return sub
+
+    def create_service(
+        self,
+        TRequest: any,
+        TResponse: any,
+        service: str,
+        cb: callable,
+        endpoint: Tuple[str, int] = ("127.0.0.1", 0),
+    ) -> Service:
+        info = SrvInfo()
+        info.id = Node._generateID()
+        info.node_id = self.info.id
+        info.name = service
+        info.request_hash = TRequest().hash()
+        info.response_hash = TResponse().hash()
+
+        server = socket.create_server(endpoint)
+        server_endpoint = server.getsockname()
+        info.endpoint.address = server_endpoint[0]
+        info.endpoint.port = server_endpoint[1]
+
+        srv = Service(info, server, self.rixhub_endpoint)
+        srv.set_callback(TRequest, TResponse, cb)
+        self.components.add(srv)
+        return srv
+
+    def create_service_client(
+        self,
+        TRequest: any,
+        TResponse: any,
+        service: str,
+    ) -> ServiceClient:
+        request = SrvRequest()
+        request.id = Node._generateID()
+        request.name = service
+        request.node_id = self.info.id
+        request.request_hash = TRequest().hash()
+        request.response_hash = TResponse().hash()
+
+        return ServiceClient(request, self.rixhub_endpoint)
     
+    def set_parameter(self, name: str, parameter: any) -> bool:
+        info = ParamInfo()
+        info.name = name
+        info.message_hash = parameter.hash()
+        info.data = bytearray()
+        parameter.serialize(info.data)
+        client = socket.create_connection(self.rixhub_endpoint)
+        if not send_message_with_opcode(
+            client, info, OPCODE.PARAM_SET_REQUEST
+        ):
+            return False
+        return True
+
+    def get_parameter(self, name: str, parameter: any) -> bool:
+        info = ParamInfo()
+        info.name = name
+        info.message_hash = parameter.hash()
+        info_received = ParamInfo()
+        client = socket.create_connection(self.rixhub_endpoint)
+        if not send_message_with_opcode_and_response(
+            client, info, info_received, OPCODE.PARAM_GET_REQUEST
+        ):
+            return False
+        parameter.deserialize(bytearray(info_received.data), {"offset": 0})
+        return True
+    
+    def get_system_info(self, info: SystemInfo) -> bool:
+        client = socket.create_connection(self.rixhub_endpoint)
+        return send_opcode_with_response(client, info, OPCODE.SYSTEM_GET_REQUEST)
+
     @staticmethod
-    def _sigint_handler(sig, frame):
-        node = Node()
-        node._shutdown_flag = True
+    def _getMachineID() -> int | None:
+        return 0
 
-    def __run(self) -> None:
-        while self.ok():
-
-            data = recv_all_bytes(self.client, Info.size())
-
-            if data is not None:
-                info = Info.decode(data)
-                if info.opcode == CORE_TOPICS['PUB_NOTIFY']:
-                    self.__handle_pub_notify(info)
-                elif info.opcode == CORE_TOPICS['SUB_NOTIFY']:
-                    self.__handle_sub_notify(info)
-                elif info.opcode == CORE_TOPICS['PUB_DISCONNECT']:
-                    self.__handle_pub_disconnect(info)
-                elif info.opcode == CORE_TOPICS['SUB_DISCONNECT']:
-                    self.__handle_sub_disconnect(info)
-                elif info.opcode == CORE_TOPICS['MED_TERMINATE']:
-                    logging.info("Received MED_TERMINATE")
-                    self.shutdown()
-                else:
-                    logging.error("Unknown opcode: " + str(info.opcode))
-
-            pubs_to_shutdown = []
-            for topic in self.pubs:
-                for pub in self.pubs[topic]:
-                    if pub._shutdown_flag:
-                        pubs_to_shutdown.append(pub)
-                        continue
-                    pub._run_once()
-            for pub in pubs_to_shutdown:
-                self.__deregister_publisher(pub)
-                self.pubs[pub.component_info.topic.decode("utf-8")].remove(pub)
-            
-            subs_to_shutdown = []
-            for topic in self.subs:
-                for sub in self.subs[topic]:
-                    if sub._shutdown_flag:
-                        subs_to_shutdown.append(sub)
-                        continue
-                    sub._run_once()
-            for sub in subs_to_shutdown:
-                self.__deregister_subscriber(sub)
-                self.subs[sub.component_info.topic.decode("utf-8")].remove(sub)
-
-    def __register_publisher(self, publisher: Publisher) -> bool:
-        info = Info()
-        info.error = 0
-        info.opcode = CORE_TOPICS['PUB_REGISTER']
-        info.component_info = publisher.component_info
-        info.component_info.machine_id = self.machine_id
-        info.contact_id = publisher._get_id()
-
-        self.mutex.acquire()
-        status = send_all_bytes(self.client, info.encode())
-        self.mutex.release()
-
-        if not status:
-            logging.error("Failed to send PUB_REGISTER")
-            return False
-        return True
-
-
-    def __register_subscriber(self, subscriber: Subscriber) -> bool:
-        info = Info()
-        info.error = 0
-        info.opcode = CORE_TOPICS['SUB_REGISTER']
-        info.component_info = subscriber.component_info
-        info.component_info.machine_id = self.machine_id
-        info.contact_id = subscriber._get_id()
-
-        self.mutex.acquire()
-        status = send_all_bytes(self.client, info.encode())
-        self.mutex.release()
-
-        if not status:
-            logging.error("Failed to send SUB_REGISTER")
-            return False
-        return True
-
-    def __deregister_publisher(self, publisher: Publisher) -> bool:
-        info = Info()
-        info.error = 0
-        info.opcode = CORE_TOPICS['PUB_DEREGISTER']
-        info.component_info = publisher.component_info
-        info.component_info.machine_id = self.machine_id
-
-        self.mutex.acquire()
-        status = send_all_bytes(self.client, info.encode())
-        self.mutex.release()
-
-        if not status:
-            logging.error("Failed to send PUB_DEREGISTER")
-            return False
-        return True
-
-    def __deregister_subscriber(self, subscriber: Subscriber) -> bool:
-        info = Info()
-        info.error = 0
-        info.opcode = CORE_TOPICS['SUB_DEREGISTER']
-        info.component_info = subscriber.component_info
-        info.component_info.machine_id = self.machine_id
-
-        self.mutex.acquire()
-        status = send_all_bytes(self.client, info.encode())
-        self.mutex.release()
-
-        if not status:
-            logging.error("Failed to send SUB_DEREGISTER")
-            return False
-        return True
-
-    def __handle_pub_notify(self, info: Publisher) -> None:
-        if info.error != 0:
-            logging.error("PUB_NOTIFY error: " + str(info.error))
-            return
-        
-        topic = info.component_info.topic.decode("utf-8")
-        for p in self.pubs[topic]:
-            if p.component_info.component_id == info.component_info.component_id:
-                p._add_subscriber(info.contact_id)
-                return
-
-
-    def __handle_sub_notify(self, info: Subscriber) -> None:
-        if info.error != 0:
-            logging.error("SUB_NOTIFY error: " + str(info.error))
-            return
-        
-        topic = info.component_info.topic.decode("utf-8")
-        for s in self.subs[topic]:
-            if s.component_info.component_id == info.component_info.component_id:
-                s._add_publisher(info.contact_id)
-                return
-
-    def __handle_pub_disconnect(self, info: Publisher) -> None:
-        topic = info.component_info.topic.decode("utf-8")
-        for p in self.pubs[topic]:
-            if p.component_info.component_id == info.component_info.component_id:
-                p._remove_subscriber(info.contact_id)
-                return
-
-    def __handle_sub_disconnect(self, info: Subscriber) -> None:
-        topic = info.component_info.topic.decode("utf-8")
-        for s in self.subs[topic]:
-            if s.component_info.component_id == info.component_info.component_id:
-                s._remove_publisher(info.contact_id)
-                return
+    @staticmethod
+    def _generateID() -> int:
+        return random.getrandbits(64)
