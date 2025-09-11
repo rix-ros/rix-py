@@ -1,19 +1,29 @@
-import logging
 import random
 import os
 import signal
 import struct
+import socket
+from typing import Tuple
 
+from rixcore.common import (
+    RIXHUB_PORT,
+    send_message_with_opcode,
+    send_message_with_opcode_no_response,
+    send_message_with_opcode_and_response,
+    send_opcode_with_response,
+    OPCODE,
+)
+from rixmsg.mediator.PubInfo import PubInfo
+from rixmsg.mediator.SubInfo import SubInfo
+from rixmsg.mediator.SrvInfo import SrvInfo
+from rixmsg.mediator.SrvRequest import SrvRequest
+from rixmsg.mediator.ParamInfo import ParamInfo
+from rixmsg.mediator.SystemInfo import SystemInfo
 from rixcore.publisher import Publisher
 from rixcore.subscriber import Subscriber
 from rixcore.service import Service
 from rixcore.service_client import ServiceClient
-from rixcore.impl.node_impl import NodeImpl
-from rixcore.impl.pub_impl import PubImplBase, PubImplTCP
-from rixcore.impl.sub_impl import SubImplBase, SubImplTCP
-from rixcore.impl.srv_impl import SrvImplBase, SrvImplTCP
-from rixcore.impl.srv_cli_impl import SrvCliImplBase, SrvCliImplTCP
-from rixmsg.standard.UInt32 import UInt32
+from rixmsg.mediator.NodeInfo import NodeInfo
 
 
 class Node:
@@ -21,117 +31,177 @@ class Node:
     _initialized = False
 
     @staticmethod
-    def init(name: str, hubIP: str) -> bool:
-        if Node._initialized:
-            logging.error("Node already initialized")
-            return False
+    def create(
+        name: str, rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", RIXHUB_PORT)
+    ) -> "Node":
+        info = NodeInfo()
+        info.id = Node._generateID()
+        info.machine_id = Node._getMachineID()
+        info.name = name
 
-        logging.basicConfig(
-            level=logging.INFO,
-            format=f"[%(asctime)s] [%(levelname)s] [{name}] %(message)s",
+        return Node(info, rixhub_endpoint)
+
+    def __init__(
+        self,
+        info: NodeInfo,
+        rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", RIXHUB_PORT),
+    ):
+        self.info = info
+        self.rixhub_endpoint = rixhub_endpoint
+        self.shutdown_flag = False
+        self.components = set()
+
+        client = socket.create_connection(self.rixhub_endpoint)
+        if not send_message_with_opcode(
+            client, self.info, OPCODE.NODE_REGISTER
+        ):
+            self.shutdown()
+
+    def __del__(self):
+        self.shutdown()
+        client = socket.create_connection(self.rixhub_endpoint)
+        send_message_with_opcode_no_response(
+            client, self.info, OPCODE.NODE_DEREGISTER
         )
 
-        signal.signal(signal.SIGINT, Node._sigint_handler)
-        signal.signal(signal.SIGTERM, Node._sigint_handler)
-        signal.signal(signal.SIGPIPE, Node._sigint_handler)
+    def spin(self) -> None:
+        try:
+            while self.ok():
+                remove_list = []
+                for component in self.components:
+                    if not component.ok():
+                        remove_list.append(component)
+                        continue
+                    component._spin_once()
+                for component in remove_list:
+                    self.components.remove(component)
+        except KeyboardInterrupt as e:
+            self.shutdown()
 
-        random.seed(None)
-        nodeID = Node._generateID()
-        machineID = Node._getMachineID()
+    def shutdown(
+        self,
+    ) -> None:
+        self.shutdown_flag = True
 
-        Node._impl = NodeImpl()
-        Node._initialized = Node._impl.init(nodeID, machineID, name, hubIP)
-        return Node._initialized
+    def ok(
+        self,
+    ) -> bool:
+        return not self.shutdown_flag
 
-    @staticmethod
-    def spin(block: bool = True) -> None:
-        Node._impl.spin(block)
+    def create_publisher(
+        self, TMsg: any, topic: str, endpoint: Tuple[str, int] = ("127.0.0.1", 0)
+    ) -> Publisher:
+        info = PubInfo()
+        info.id = Node._generateID()
+        info.node_id = self.info.id
+        info.topic_info.name = topic
+        info.topic_info.message_hash = TMsg().hash()
 
-    @staticmethod
-    def shutdown() -> None:
-        Node._impl.shutdown()
+        server = socket.create_server(endpoint)
+        server_endpoint = server.getsockname()
+        info.endpoint.address = server_endpoint[0]
+        info.endpoint.port = server_endpoint[1]
 
-    @staticmethod
-    def ok() -> bool:
-        return Node._impl.ok()
+        pub = Publisher(info, server, self.rixhub_endpoint)
+        self.components.add(pub)
+        return pub
 
-    @staticmethod
-    def advertise(TMsg: any, topic: str, TImpl=PubImplTCP) -> Publisher:
-        pubID = Node._generateID()
-        msgHash = TMsg().hash()
-        pubImpl = TImpl(pubID, Node._impl.info.id, topic, msgHash)
-        return Node._impl.advertise(pubImpl)
+    def create_subscriber(
+        self,
+        TMsg: any,
+        topic: str,
+        cb: callable,
+        endpoint: Tuple[str, int] = ("127.0.0.1", 0),
+    ) -> Subscriber:
+        info = SubInfo()
+        info.id = Node._generateID()
+        info.node_id = self.info.id
+        info.topic_info.name = topic
+        info.topic_info.message_hash = TMsg().hash()
 
-    @staticmethod
-    def subscribe(TMsg: any, topic: str, cb: callable, TImpl=SubImplTCP) -> Subscriber:
-        subID = Node._generateID()
-        msgHash = TMsg().hash()
+        server = socket.create_server(endpoint)
+        server_endpoint = server.getsockname()
+        info.endpoint.address = server_endpoint[0]
+        info.endpoint.port = server_endpoint[1]
 
-        def _cb(buffer):
-            msg = TMsg()
-            msg.deserialize(buffer, {"offset": 0})
-            cb(msg)
+        sub = Subscriber(info, server, self.rixhub_endpoint)
+        sub.set_callback(TMsg, cb)
+        self.components.add(sub)
+        return sub
 
-        subImpl = TImpl(subID, Node._impl.info.id, topic, msgHash, _cb)
-        return Node._impl.subscribe(subImpl)
-
-    @staticmethod
-    def advertiseService(
-        TReq: any, TRes: any, srvName: str, cb: callable, TImpl=SrvImplTCP
+    def create_service(
+        self,
+        TRequest: any,
+        TResponse: any,
+        service: str,
+        cb: callable,
+        endpoint: Tuple[str, int] = ("127.0.0.1", 0),
     ) -> Service:
-        srvID = Node._generateID()
-        reqHash = TReq().hash()
-        resHash = TRes().hash()
+        info = SrvInfo()
+        info.id = Node._generateID()
+        info.node_id = self.info.id
+        info.name = service
+        info.request_hash = TRequest().hash()
+        info.response_hash = TResponse().hash()
 
-        def _cb(reqBuffer) -> bytearray | None:
-            req = TReq()
-            req.deserialize(reqBuffer, {"offset": 0})
-            res = cb(req)
-            resBuffer = bytearray()
-            sizeMsg = UInt32()
-            sizeMsg.data = res.size()
-            sizeMsg.serialize(resBuffer)
-            res.serialize(resBuffer)
-            return resBuffer
+        server = socket.create_server(endpoint)
+        server_endpoint = server.getsockname()
+        info.endpoint.address = server_endpoint[0]
+        info.endpoint.port = server_endpoint[1]
 
-        srvImpl = SrvImplTCP(srvID, Node._impl.info.id, srvName, reqHash, resHash, _cb)
-        return Node._impl.advertiseService(srvImpl)
+        srv = Service(info, server, self.rixhub_endpoint)
+        srv.set_callback(TRequest, TResponse, cb)
+        self.components.add(srv)
+        return srv
 
-    @staticmethod
-    def serviceClient(
-        TReq: any, TRes: any, srvName: str, TImpl=SrvCliImplTCP
+    def create_service_client(
+        self,
+        TRequest: any,
+        TResponse: any,
+        service: str,
     ) -> ServiceClient:
-        srvCliID = Node._generateID()
-        reqHash = TReq().hash()
-        resHash = TRes().hash()
-        srvCliImpl = SrvCliImplTCP(
-            srvCliID, Node._impl.info.id, srvName, reqHash, resHash
-        )
-        return Node._impl.serviceClient(srvCliImpl)
+        request = SrvRequest()
+        request.id = Node._generateID()
+        request.name = service
+        request.node_id = self.info.id
+        request.request_hash = TRequest().hash()
+        request.response_hash = TResponse().hash()
 
-    @staticmethod
-    def _sigint_handler(sig, frame):
-        if sig == signal.SIGINT or sig == signal.SIGTERM:
-            if Node._impl is None:
-                return
-            Node._impl.shutdown()
+        return ServiceClient(request, self.rixhub_endpoint)
+    
+    def set_parameter(self, name: str, parameter: any) -> bool:
+        info = ParamInfo()
+        info.name = name
+        info.message_hash = parameter.hash()
+        info.data = bytearray()
+        parameter.serialize(info.data)
+        client = socket.create_connection(self.rixhub_endpoint)
+        if not send_message_with_opcode(
+            client, info, OPCODE.PARAM_SET_REQUEST
+        ):
+            return False
+        return True
+
+    def get_parameter(self, name: str, parameter: any) -> bool:
+        info = ParamInfo()
+        info.name = name
+        info.message_hash = parameter.hash()
+        info_received = ParamInfo()
+        client = socket.create_connection(self.rixhub_endpoint)
+        if not send_message_with_opcode_and_response(
+            client, info, info_received, OPCODE.PARAM_GET_REQUEST
+        ):
+            return False
+        parameter.deserialize(bytearray(info_received.data), {"offset": 0})
+        return True
+    
+    def get_system_info(self, info: SystemInfo) -> bool:
+        client = socket.create_connection(self.rixhub_endpoint)
+        return send_opcode_with_response(client, info, OPCODE.SYSTEM_GET_REQUEST)
 
     @staticmethod
     def _getMachineID() -> int | None:
-        ROOT = os.getenv("HOME", os.path.expanduser("~"))
-        machine_id_path = ROOT + "/.rix/.machine_id"
-        try:
-            if not os.path.exists(machine_id_path):
-                os.makedirs(os.path.dirname(machine_id_path), exist_ok=True)
-                with open(machine_id_path, "wb") as f:
-                    random_bytes = random.randbytes(8)
-                    f.write(random_bytes)
-            with open(machine_id_path, "rb") as f:
-                data = f.read()
-                return struct.unpack("Q", data)[0]
-        except Exception as e:
-            logging.error(f"Failed to read machine id: {e}")
-            return 0
+        return 0
 
     @staticmethod
     def _generateID() -> int:

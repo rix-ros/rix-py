@@ -1,6 +1,12 @@
+import socket
 from enum import IntEnum
+from typing import Tuple
 
-RIX_HUB_PORT = 48104
+from rixmsg.mediator.Operation import Operation
+from rixmsg.mediator.Status import Status
+from rixmsg.standard.UInt32 import UInt32
+
+RIXHUB_PORT = 48104
 MACHINE_ID_FILE = "~/.rix/machine_id"
 
 class OPCODE(IntEnum):
@@ -9,41 +15,95 @@ class OPCODE(IntEnum):
     PUB_REGISTER = 82
     SRV_REGISTER = 83
     ACT_REGISTER = 84
+
     SUB_NOTIFY = 90
-    PUB_NOTIFY = 91
+
     NODE_DEREGISTER = 100
     SUB_DEREGISTER = 101
     PUB_DEREGISTER = 102
     SRV_DEREGISTER = 103
     ACT_DEREGISTER = 104
+
     SRV_REQUEST = 140
     ACT_REQUEST = 141
+    PARAM_SET_REQUEST = 142
+    PARAM_GET_REQUEST = 143
+    SYSTEM_GET_REQUEST = 144
+
     SRV_RESPONSE = 150
     ACT_RESPONSE = 151
     TERMINATE = 160
 
-class ERROR_CODE(IntEnum):
-    NO_ERROR = 0
-    UNKNOWN_NODE_ID = 1
-    DUPLICATE_NODE_ID = 2
-    DUPLICATE_SUB_ID = 3
-    DUPLICATE_PUB_ID = 4
-    UNKNOWN_SRV = 5
-    DUPLICATE_SRV_NAME = 6
-    UNKNOWN_ACT = 7
-    DUPLICATE_ACT_NAME = 8
-    INVALID_MESSAGE_HASH = 9
-    PROTOCOL_MISMATCH = 10
 
-class PROTOCOL(IntEnum):
-    TCP = 0x01
-    UDP = 0x02
-    SHM = 0x04
-    WEB = 0x08
-    WEB2 = 0x10
+def send_message_with_opcode_no_response(
+    client: socket.socket, msg: any, opcode: int
+) -> bool:
+    op = Operation()
+    op.opcode = opcode
+    op.len = msg.size()
+    buffer = bytearray()
+    op.serialize(buffer)
+    msg.serialize(buffer)
+    try:
+        sent = client.send(buffer)
+    except Exception as e:
+        return False
+    return True
 
-class TYPE(IntEnum):
-    PUBLISHER = 0
-    SUBSCRIBER = 1
-    SERVICE = 2
-    ACTION = 3
+
+def send_message_with_opcode(
+    client: socket.socket, msg: any, opcode: int
+) -> bool:
+    if not send_message_with_opcode_no_response(client, msg, opcode):
+        return False
+
+    status = Status()
+    msgLen = status.size()
+    msgBuffer = bytearray(msgLen)
+    client.recv_into(memoryview(msgBuffer), msgLen)
+    status.deserialize(msgBuffer, {"offset": 0})
+    if status.error != 0:
+        return False
+    return True
+
+def send_message_with_opcode_and_response(
+    client: socket.socket, in_msg: any, out_msg: any, opcode: int
+) -> bool:
+    if not send_message_with_opcode_no_response(client, in_msg, opcode):
+        return False
+
+    sizeMsg = UInt32()
+    msgLen = sizeMsg.size()
+    msgBuffer = bytearray(msgLen)
+    client.recv_into(memoryview(msgBuffer), msgLen)
+    sizeMsg.deserialize(msgBuffer, {"offset": 0})
+    
+    msgBuffer = bytearray(sizeMsg.data)
+    client.recv_into(memoryview(msgBuffer), sizeMsg.data)
+    out_msg.deserialize(msgBuffer, {"offset": 0})
+    return True
+
+def send_opcode_with_response(
+    client: socket.socket, out_msg: any, opcode: int
+) -> bool:
+    op = Operation()
+    op.opcode = opcode
+    op.len = 0
+    buffer = bytearray()
+    op.serialize(buffer)
+    try:
+        sent = client.send(buffer)
+    except Exception as e:
+        return False
+    
+    sizeMsg = UInt32()
+    msgLen = sizeMsg.size()
+    msgBuffer = bytearray(msgLen)
+    client.recv_into(memoryview(msgBuffer), msgLen)
+    sizeMsg.deserialize(msgBuffer, {"offset": 0})
+    
+    msgBuffer = bytearray(sizeMsg.data)
+    client.recv_into(memoryview(msgBuffer), sizeMsg.data)
+    out_msg.deserialize(msgBuffer, {"offset": 0})
+
+    return True
