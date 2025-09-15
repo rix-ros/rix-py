@@ -1,14 +1,10 @@
 from rixcore.node import Node
-from rixcore.publisher import Publisher
 from rixmsg.standard.Header import Header
 from rixmsg.mediator.SystemInfo import SystemInfo
-from threading import Thread
-
-from time import time_ns, sleep
 
 
 def main():
-    node = Node.create("param_server_test")
+    node = Node("param_server_test")
 
     header = Header()
     header.frame_id = "Hello, world!"

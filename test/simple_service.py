@@ -1,5 +1,4 @@
 from rixcore.node import Node
-from rixcore.service import Service
 from rixmsg.standard.String import String
 from rixmsg.standard.UInt32 import UInt32
 
@@ -12,7 +11,7 @@ def alphabet(req: UInt32, res: String) -> None:
 
 
 def main():
-    node = Node.create("simple_service")
+    node = Node("simple_service")
     if not node.ok():
         print("Failed to initialize node")
         return
@@ -20,13 +19,12 @@ def main():
     srv = node.create_service(UInt32, String, "/alphabet", alphabet)
     if not srv.ok():
         print("Failed to advertise service")
-        node.shutdown()
         return
-    
+
     try:
         node.spin()
     except KeyboardInterrupt as e:
-        node.shutdown()
+        return
 
 
 if __name__ == "__main__":

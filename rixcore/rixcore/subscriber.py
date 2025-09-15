@@ -1,7 +1,7 @@
 import threading
 import socket
 import select
-from typing import Tuple
+from typing import Tuple, Callable
 
 from rixcore.common import (
     send_message_with_opcode,
@@ -13,9 +13,11 @@ from rixmsg.mediator.Operation import Operation
 from rixmsg.mediator.SubInfo import SubInfo
 from rixmsg.mediator.PubInfo import PubInfo
 from rixmsg.mediator.SubNotify import SubNotify
+from rixcore.interfaces.spinner import Spinner
+from rixmsg.message import Message
 
 
-class Subscriber:
+class Subscriber(Spinner):
     def __init__(
         self,
         info: SubInfo,
@@ -25,7 +27,7 @@ class Subscriber:
         self.shutdown_flag = False
         self.info = info
         self.server = server
-        self.clients = set()
+        self.clients: set[socket.socket] = set()
         self.callback = None
         self.callback_mutex = threading.Lock()
         self.rixhub_endpoint = rixhub_endpoint
@@ -42,10 +44,12 @@ class Subscriber:
     def ok(self) -> bool:
         return not self.shutdown_flag
 
-    def set_callback(self, TMsg, callback: callable):
+    def set_callback(
+        self, TMsg: Callable[[], Message], callback: Callable[[Message], None]
+    ):
         def callback_serialized(buffer: bytearray):
             msg = TMsg()
-            msg.deserialize(buffer, {"offset": 0})
+            msg.deserialize(buffer, Message.Offset())
             callback(msg)
 
         self.callback = callback_serialized
@@ -53,7 +57,7 @@ class Subscriber:
     def shutdown(self) -> None:
         self.shutdown_flag = True
 
-    def _spin_once(self) -> None:
+    def spin_once(self) -> None:
         readable, _, _ = select.select([self.server], [], [], 0.0)
         if self.server in readable:
             conn, _ = self.server.accept()
@@ -62,23 +66,24 @@ class Subscriber:
             recvSize = op.size()
             opBuffer = bytearray(recvSize)
             conn.recv_into(opBuffer, recvSize)
-            op.deserialize(opBuffer, {"offset": 0})
+            op.deserialize(opBuffer, Message.Offset())
             msgBuffer = bytearray(op.len)
             bytesRecv = conn.recv_into(memoryview(msgBuffer), op.len)
 
             sub_notify = SubNotify()
-            sub_notify.deserialize(msgBuffer, {"offset": 0})
+            sub_notify.deserialize(msgBuffer, Message.Offset())
             for pub in sub_notify.publishers:
                 client = socket.socket()
                 client.setblocking(False)
                 try:
                     client.connect((pub.endpoint.address, pub.endpoint.port))
-                except Exception as e:
+                except Exception as _:
                     pass
+
                 self.clients.add(client)
 
         self.callback_mutex.acquire()
-        to_remove = []
+        to_remove: list[socket.socket] = []
         for client in self.clients:
             readable, _, _ = select.select([client], [], [], 0.0)
             if client in readable:
@@ -91,7 +96,7 @@ class Subscriber:
                         to_remove.append(client)
                         continue
 
-                    msgLen.deserialize(msgLenBuffer, {"offset": 0})
+                    msgLen.deserialize(msgLenBuffer, Message.Offset())
                     msgBuffer = bytearray(msgLen.data)
                     bytesRecv = 0
                     while bytesRecv < msgLen.data:
@@ -100,9 +105,9 @@ class Subscriber:
                         )
                     if self.callback is not None:
                         self.callback(msgBuffer)
-                except TimeoutError as e:
+                except TimeoutError as _:
                     continue
-                except Exception as e:
+                except Exception as _:
                     continue
 
         for client in to_remove:

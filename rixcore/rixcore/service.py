@@ -1,19 +1,19 @@
 import threading
 import socket
 import select
-from typing import Tuple
+from typing import Tuple, Callable
 
 from rixcore.common import (
     send_message_with_opcode,
     send_message_with_opcode_no_response,
     OPCODE,
 )
+from rixmsg.message import Message
 from rixmsg.standard.UInt32 import UInt32
-from rixmsg.mediator.Operation import Operation
 from rixmsg.mediator.SrvInfo import SrvInfo
+from rixcore.interfaces.spinner import Spinner
 
-
-class Service:
+class Service(Spinner):
     def __init__(
         self,
         info: SrvInfo,
@@ -39,10 +39,15 @@ class Service:
     def ok(self) -> bool:
         return not self.shutdown_flag
 
-    def set_callback(self, TRequest, TResponse, callback: callable):
+    def set_callback(
+        self,
+        TRequest: Callable[[], Message],
+        TResponse: Callable[[], Message],
+        callback: Callable[[Message, Message], None],
+    ):
         def callback_serialized(request_buffer: bytearray, response_buffer: bytearray):
             request_msg = TRequest()
-            request_msg.deserialize(request_buffer, {"offset": 0})
+            request_msg.deserialize(request_buffer, Message.Offset())
             response_msg = TResponse()
             callback(request_msg, response_msg)
             responseSize = UInt32()
@@ -55,7 +60,7 @@ class Service:
     def shutdown(self) -> None:
         self.shutdown_flag = True
 
-    def _spin_once(self) -> None:
+    def spin_once(self) -> None:
         readable, _, _ = select.select([self.server], [], [], 0.0)
         if self.server not in readable:
             return
@@ -71,7 +76,7 @@ class Service:
                 if bytesRecv <= 0:
                     return
 
-                requestLen.deserialize(requestLenBuffer, {"offset": 0})
+                requestLen.deserialize(requestLenBuffer, Message.Offset())
                 requestBuffer = bytearray(requestLen.data)
                 bytesRecv = 0
                 while bytesRecv < requestLen.data:
@@ -84,7 +89,7 @@ class Service:
                     self.callback(requestBuffer, responseBuffer)
                     conn.send(responseBuffer)
 
-            except TimeoutError as e:
+            except TimeoutError as _:
                 return
-            except Exception as e:
+            except Exception as _:
                 return

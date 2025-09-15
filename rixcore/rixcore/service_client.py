@@ -1,16 +1,13 @@
 import threading
 import socket
-import select
 from typing import Tuple
 
 from rixcore.common import (
-    send_message_with_opcode,
-    send_message_with_opcode_no_response,
     send_message_with_opcode_and_response,
     OPCODE,
 )
+from rixmsg.message import Message
 from rixmsg.standard.UInt32 import UInt32
-from rixmsg.mediator.Operation import Operation
 from rixmsg.mediator.SrvRequest import SrvRequest
 from rixmsg.mediator.SrvResponse import SrvResponse
 
@@ -51,7 +48,7 @@ class ServiceClient:
     def shutdown(self) -> None:
         self.shutdown_flag = True
 
-    def call(self, request: any, response: any) -> bool:
+    def call(self, request: Message, response: Message) -> bool:
         client = socket.socket()
         try:
             client.connect(self.endpoint)
@@ -68,9 +65,9 @@ class ServiceClient:
             responseLenBuffer = bytearray(recvSize)
             bytesRecv = client.recv_into(responseLenBuffer, recvSize)
             if bytesRecv <= 0:
-                return
+                return False
 
-            responseLen.deserialize(responseLenBuffer, {"offset": 0})
+            responseLen.deserialize(responseLenBuffer, Message.Offset())
             responseBuffer = bytearray(responseLen.data)
             bytesRecv = 0
             while bytesRecv < responseLen.data:
@@ -78,6 +75,8 @@ class ServiceClient:
                     memoryview(responseBuffer)[bytesRecv:],
                     responseLen.data - bytesRecv,
                 )
-            response.deserialize(responseBuffer, {"offset": 0})
-        except Exception as e:
+            response.deserialize(responseBuffer, Message.Offset())
+        except Exception as _:
             return False
+        
+        return True
