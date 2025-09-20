@@ -1,17 +1,13 @@
 import random
-import socket
+from rixcore.socket import Socket
 from typing import Callable, Tuple, TypeVar
 from rixmsg.message import Message
 
 from rixcore.common import (
     RIXHUB_PORT,
-    send_message_with_opcode,
-    send_message_with_opcode_no_response,
-    send_message_with_opcode_and_response,
-    send_opcode_with_response,
     OPCODE,
 )
-from rixcore.interfaces.spinner import Spinner
+from rixcore.spinner import Spinner
 from rixmsg.mediator.NodeInfo import NodeInfo
 from rixmsg.mediator.ParamInfo import ParamInfo
 from rixmsg.mediator.PubInfo import PubInfo
@@ -19,6 +15,9 @@ from rixmsg.mediator.SrvInfo import SrvInfo
 from rixmsg.mediator.SrvRequest import SrvRequest
 from rixmsg.mediator.SubInfo import SubInfo
 from rixmsg.mediator.SystemInfo import SystemInfo
+from rixmsg.mediator.Operation import Operation
+from rixmsg.standard.UInt64 import UInt64
+from rixmsg.mediator.Status import Status
 from rixcore.publisher import Publisher
 from rixcore.service import Service
 from rixcore.service_client import ServiceClient
@@ -40,17 +39,33 @@ class Node(Spinner):
         self.info.machine_id = Node.__getMachineID()
         self.info.name = name
         self.rixhub_endpoint = rixhub_endpoint
-        self.shutdown_flag = False
+        self.shutdown_flag = True
+        self.registered_flag = False
         self.components: set[Spinner] = set()
 
-        client = socket.create_connection(self.rixhub_endpoint)
-        if not send_message_with_opcode(client, self.info, OPCODE.NODE_REGISTER):
-            self.shutdown()
+        client = Socket()
+        if not client.connect(self.rixhub_endpoint):
+            return
+        if not client.send_message(OPCODE.NODE_REGISTER, self.info):
+            return
+
+        op = Operation()
+        status = Status()
+        if not client.recv_message_with_opcode(op, status):
+            return
+        if op.opcode != OPCODE.STATUS_RESPONSE:
+            return
+        if status.error != 0:
+            return
+        
+        self.registered_flag = True
+        self.shutdown_flag = False
 
     def __del__(self):
-        self.shutdown()
-        client = socket.create_connection(self.rixhub_endpoint)
-        send_message_with_opcode_no_response(client, self.info, OPCODE.NODE_DEREGISTER)
+        if self.registered_flag:
+            client = Socket()
+            if client.connect(self.rixhub_endpoint):
+                client.send_message(OPCODE.NODE_DEREGISTER, self.info)
 
     def spin_once(self) -> None:
         remove_list: list[Spinner] = []
@@ -83,13 +98,10 @@ class Node(Spinner):
         info.node_id = self.info.id
         info.topic_info.name = topic
         info.topic_info.message_hash = TMsg().hash()
+        info.endpoint.address = endpoint[0]
+        info.endpoint.port = endpoint[1]
 
-        server = socket.create_server(endpoint)
-        server_endpoint = server.getsockname()
-        info.endpoint.address = server_endpoint[0]
-        info.endpoint.port = server_endpoint[1]
-
-        pub = Publisher(info, server, self.rixhub_endpoint)
+        pub = Publisher(info, self.rixhub_endpoint)
         self.components.add(pub)
         return pub
 
@@ -105,13 +117,10 @@ class Node(Spinner):
         info.node_id = self.info.id
         info.topic_info.name = topic
         info.topic_info.message_hash = TMsg().hash()
+        info.endpoint.address = endpoint[0]
+        info.endpoint.port = endpoint[1]
 
-        server = socket.create_server(endpoint)
-        server_endpoint = server.getsockname()
-        info.endpoint.address = server_endpoint[0]
-        info.endpoint.port = server_endpoint[1]
-
-        sub = Subscriber(info, server, self.rixhub_endpoint)
+        sub = Subscriber(info, self.rixhub_endpoint)
         sub.set_callback(TMsg, callback)
         self.components.add(sub)
         return sub
@@ -130,13 +139,10 @@ class Node(Spinner):
         info.name = service
         info.request_hash = TRequest().hash()
         info.response_hash = TResponse().hash()
+        info.endpoint.address = endpoint[0]
+        info.endpoint.port = endpoint[1]
 
-        server = socket.create_server(endpoint)
-        server_endpoint = server.getsockname()
-        info.endpoint.address = server_endpoint[0]
-        info.endpoint.port = server_endpoint[1]
-
-        srv = Service(info, server, self.rixhub_endpoint)
+        srv = Service(info, self.rixhub_endpoint)
         srv.set_callback(TRequest, TResponse, callback)
         self.components.add(srv)
         return srv
@@ -163,31 +169,72 @@ class Node(Spinner):
 
     def set_parameter(self, name: str, parameter: Message) -> bool:
         info = ParamInfo()
+        info.id = self.info.id
         info.name = name
         info.message_hash = parameter.hash()
         info.data = bytearray()
         parameter.serialize(info.data)
-        client = socket.create_connection(self.rixhub_endpoint)
-        if not send_message_with_opcode(client, info, OPCODE.PARAM_SET_REQUEST):
+        client = Socket()
+        if not client.connect(self.rixhub_endpoint):
             return False
+        if not client.send_message(OPCODE.PARAM_SET_REQUEST, info):
+            return False
+        
+        op = Operation()
+        status = Status()
+        if not client.recv_message_with_opcode(op, status):
+            return False
+        
+        if op.opcode != OPCODE.STATUS_RESPONSE:
+            return False
+        
+        if status.error != 0:
+            return False
+        
         return True
 
     def get_parameter(self, name: str, parameter: Message) -> bool:
         info = ParamInfo()
+        info.id = self.info.id
         info.name = name
         info.message_hash = parameter.hash()
-        info_received = ParamInfo()
-        client = socket.create_connection(self.rixhub_endpoint)
-        if not send_message_with_opcode_and_response(
-            client, info, info_received, OPCODE.PARAM_GET_REQUEST
-        ):
+        
+        client = Socket()
+        if not client.connect(self.rixhub_endpoint):
             return False
+        
+        if not client.send_message(OPCODE.PARAM_GET_REQUEST, info):
+            return False
+        
+        info_received = ParamInfo()
+        op = Operation()
+        if not client.recv_message_with_opcode(op, info_received):
+            return False
+        
+        if op.opcode != OPCODE.PARAM_GET_RESPONSE:
+            return False
+        
         parameter.deserialize(bytearray(info_received.data), Message.Offset())
         return True
 
     def get_system_info(self, info: SystemInfo) -> bool:
-        client = socket.create_connection(self.rixhub_endpoint)
-        return send_opcode_with_response(client, info, OPCODE.SYSTEM_GET_REQUEST)
+        client = Socket()
+        if not client.connect(self.rixhub_endpoint):
+            return False
+        
+        node_id = UInt64()
+        node_id.data = self.info.id
+        if not client.send_message(OPCODE.SYSTEM_GET_REQUEST, node_id):
+            return False
+        
+        op = Operation()
+        if not client.recv_message_with_opcode(op, info):
+            return False
+
+        if op.opcode != OPCODE.SYSTEM_GET_RESPONSE:
+            return False
+        
+        return True
 
     @staticmethod
     def __getMachineID() -> int:

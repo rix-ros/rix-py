@@ -1,73 +1,90 @@
 import threading
-import socket
-import select
 from typing import Tuple
 
 from rixcore.common import (
-    send_message_with_opcode,
-    send_message_with_opcode_no_response,
     OPCODE,
 )
+from rixcore.socket import Socket
 from rixmsg.message import Message
 from rixmsg.mediator.PubInfo import PubInfo
+from rixmsg.mediator.Status import Status
+from rixmsg.mediator.Operation import Operation
 from rixmsg.standard.UInt32 import UInt32
-from rixcore.interfaces.spinner import Spinner
+from rixcore.spinner import Spinner
 
 class Publisher(Spinner):
     def __init__(
         self,
         info: PubInfo,
-        server: socket.socket,
         rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", 0),
     ):
-        self._shutdown_flag = False
+        self.shutdown_flag = True
+        self.registered_flag = False
         self.info = info
-        self.server = server
-        self.connections: set[socket.socket] = set()
+        self.server = Socket()
+
+        if not self.server.set_reuse_address(True):
+            return
+        if not self.server.bind((info.endpoint.address, info.endpoint.port)):
+            return
+        if not self.server.listen(32):
+            return
+        
+        server_endpoint = self.server.local_endpoint()
+        info.endpoint.address = server_endpoint[0]
+        info.endpoint.port = server_endpoint[1]
+
+        self.connections: set[Socket] = set()
         self.connections_mutex = threading.Lock()
         self.rixhub_endpoint = rixhub_endpoint
 
-        client = socket.create_connection(self.rixhub_endpoint)
-        if not send_message_with_opcode(client, self.info, OPCODE.PUB_REGISTER):
-            self.shutdown()
+        client = Socket()
+        if not client.connect(self.rixhub_endpoint):
+            return
+        
+        if not client.send_message(OPCODE.PUB_REGISTER, self.info):
+            return
+
+        op = Operation()
+        status = Status()
+        if not client.recv_message_with_opcode(op, status):
+            return
+        if op.opcode != OPCODE.STATUS_RESPONSE:
+            return
+        if status.error != 0:
+            return
+        
+        self.shutdown_flag = False
+        self.registered_flag = True
 
     def __del__(self):
-        self.shutdown()
-        client = socket.create_connection(self.rixhub_endpoint)
-        send_message_with_opcode_no_response(client, self.info, OPCODE.PUB_DEREGISTER)
+        if self.registered_flag:
+          client = Socket()
+          if client.connect(self.rixhub_endpoint):
+              client.send_message(OPCODE.PUB_DEREGISTER, self.info)
 
     def ok(self) -> bool:
-        return not self._shutdown_flag
+        return not self.shutdown_flag
 
     def publish(self, msg: Message) -> None:
         if msg.hash() != self.info.topic_info.message_hash:
             print("Warning: Message type mismatch in publish!")
             return
 
-        buffer = bytearray()
-        msgLen = UInt32()
-        msgLen.data = msg.size()
-        msgLen.serialize(buffer)
-        msg.serialize(buffer)
-        to_remove: list[socket.socket] = []
-        self.connections_mutex.acquire()
-        for conn in self.connections:
-            try:
-                conn.send(buffer)
-            except Exception as _:
-                to_remove.append(conn)
-                continue
-        for conn in to_remove:
-            self.connections.remove(conn)
-        self.connections_mutex.release()
+        to_remove: list[Socket] = []
+        with self.connections_mutex:
+            for conn in self.connections:
+                if not conn.send_message(OPCODE.PUB_MESSAGE, msg):
+                    to_remove.append(conn)
+
+            for conn in to_remove:
+                self.connections.remove(conn)
 
     def shutdown(self) -> None:
-        self._shutdown_flag = True
+        self.shutdown_flag = True
 
     def spin_once(self) -> None:
-        readable, _, _ = select.select([self.server], [], [], 0.0)
-        if self.server in readable:
+        if self.server.is_readable():
             conn, _ = self.server.accept()
-            self.connections_mutex.acquire()
-            self.connections.add(conn)
-            self.connections_mutex.release()
+            with self.connections_mutex:
+                self.connections.add(conn)

@@ -1,19 +1,17 @@
 import threading
-import socket
-import select
 from typing import Tuple, Callable
 
 from rixcore.common import (
-    send_message_with_opcode,
-    send_message_with_opcode_no_response,
     OPCODE,
 )
+from rixcore.socket import Socket
 from rixmsg.standard.UInt32 import UInt32
 from rixmsg.mediator.Operation import Operation
+from rixmsg.mediator.Status import Status
 from rixmsg.mediator.SubInfo import SubInfo
 from rixmsg.mediator.PubInfo import PubInfo
 from rixmsg.mediator.SubNotify import SubNotify
-from rixcore.interfaces.spinner import Spinner
+from rixcore.spinner import Spinner
 from rixmsg.message import Message
 
 
@@ -21,96 +19,113 @@ class Subscriber(Spinner):
     def __init__(
         self,
         info: SubInfo,
-        server: socket.socket,
-        rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", 0),
+        rixhub_endpoint: Tuple[str, int]
     ):
-        self.shutdown_flag = False
+        self.shutdown_flag = True
+        self.registered_flag = False
         self.info = info
-        self.server = server
-        self.clients: set[socket.socket] = set()
+        self.server = Socket()
+        if not self.server.set_reuse_address(True):
+            return
+        if not self.server.bind((info.endpoint.address, info.endpoint.port)):
+            return
+        if not self.server.listen(32):
+            return
+        
+        server_endpoint = self.server.local_endpoint()
+        info.endpoint.address = server_endpoint[0]
+        info.endpoint.port = server_endpoint[1]
+
+        self.clients: set[Socket] = set()
         self.callback = None
         self.callback_mutex = threading.Lock()
         self.rixhub_endpoint = rixhub_endpoint
+        self.message_instance: Message | None = None
 
-        client = socket.create_connection(self.rixhub_endpoint)
-        if not send_message_with_opcode(client, self.info, OPCODE.SUB_REGISTER):
-            self.shutdown()
+        client = Socket()
+        if not client.connect(self.rixhub_endpoint):
+            return
+        
+        if not client.send_message(OPCODE.SUB_REGISTER, self.info):
+            return
+        
+        op = Operation()
+        status = Status()
+        if not client.recv_message_with_opcode(op, status):
+            return
+        if op.opcode != OPCODE.STATUS_RESPONSE:
+            return
+        if status.error != 0:
+            return
+        
+        self.shutdown_flag = False
+        self.registered_flag = True
+
 
     def __del__(self):
-        self.shutdown()
-        client = socket.create_connection(self.rixhub_endpoint)
-        send_message_with_opcode_no_response(client, self.info, OPCODE.SUB_DEREGISTER)
+        if self.registered_flag:
+          client = Socket()
+          if client.connect(self.rixhub_endpoint):
+              client.send_message(OPCODE.SUB_DEREGISTER, self.info)
 
     def ok(self) -> bool:
         return not self.shutdown_flag
 
     def set_callback(
         self, TMsg: Callable[[], Message], callback: Callable[[Message], None]
-    ):
-        def callback_serialized(buffer: bytearray):
-            msg = TMsg()
-            msg.deserialize(buffer, Message.Offset())
-            callback(msg)
-
-        self.callback = callback_serialized
+    ) -> bool:
+        if TMsg().hash() != self.info.topic_info.message_hash:
+            return False
+        self.message_instance = TMsg()
+        self.callback = callback
+        return True
 
     def shutdown(self) -> None:
         self.shutdown_flag = True
 
     def spin_once(self) -> None:
-        readable, _, _ = select.select([self.server], [], [], 0.0)
-        if self.server in readable:
+        if self.server.is_readable():
             conn, _ = self.server.accept()
+            if conn is None:
+                return
             # Receive SubNotify message and connect to publishers
             op = Operation()
-            recvSize = op.size()
-            opBuffer = bytearray(recvSize)
-            conn.recv_into(opBuffer, recvSize)
-            op.deserialize(opBuffer, Message.Offset())
-            msgBuffer = bytearray(op.len)
-            bytesRecv = conn.recv_into(memoryview(msgBuffer), op.len)
-
             sub_notify = SubNotify()
-            sub_notify.deserialize(msgBuffer, Message.Offset())
+            if not conn.recv_message_with_opcode(op, sub_notify):
+                conn.close()
+                return
+            
+            if op.opcode != OPCODE.SUB_NOTIFY:
+                conn.close()
+                return
+
             for pub in sub_notify.publishers:
-                client = socket.socket()
-                client.setblocking(False)
-                try:
-                    client.connect((pub.endpoint.address, pub.endpoint.port))
-                except Exception as _:
-                    pass
+                client = Socket()
+                client.set_blocking(False)
+                client.connect((pub.endpoint.address, pub.endpoint.port))
 
                 self.clients.add(client)
 
-        self.callback_mutex.acquire()
-        to_remove: list[socket.socket] = []
-        for client in self.clients:
-            readable, _, _ = select.select([client], [], [], 0.0)
-            if client in readable:
-                try:
-                    msgLen = UInt32()
-                    recvSize = msgLen.size()
-                    msgLenBuffer = bytearray(recvSize)
-                    bytesRecv = client.recv_into(msgLenBuffer, recvSize)
-                    if bytesRecv <= 0:
+        if self.callback is not None and self.message_instance is not None:
+            with self.callback_mutex:
+                # Check all clients for incoming messages
+                to_remove: list[Socket] = []
+                for client in self.clients:
+                    if client.is_exception():
                         to_remove.append(client)
                         continue
+                    
+                    if client.is_readable():
+                        op = Operation()
+                        if not client.recv_message_with_opcode(op, self.message_instance):
+                            to_remove.append(client)
+                            continue
 
-                    msgLen.deserialize(msgLenBuffer, Message.Offset())
-                    msgBuffer = bytearray(msgLen.data)
-                    bytesRecv = 0
-                    while bytesRecv < msgLen.data:
-                        bytesRecv += client.recv_into(
-                            memoryview(msgBuffer)[bytesRecv:], msgLen.data - bytesRecv
-                        )
-                    if self.callback is not None:
-                        self.callback(msgBuffer)
-                except TimeoutError as _:
-                    continue
-                except Exception as _:
-                    continue
+                        if op.opcode != OPCODE.PUB_MESSAGE:
+                            to_remove.append(client)
+                            continue
+                    
+                        self.callback(self.message_instance)
 
-        for client in to_remove:
-            self.clients.remove(client)
-
-        self.callback_mutex.release()
+                for client in to_remove:
+                    self.clients.remove(client)

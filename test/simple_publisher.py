@@ -9,6 +9,7 @@ def main():
     node = Node("simple_publisher")
     if not node.ok():
         print("Error! Failed to initialize node.")
+        return
 
     pub = node.create_publisher(Header, "/chatter")
     if not pub.ok():
