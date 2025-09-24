@@ -158,3 +158,9 @@ export RIX_DEFAULT_IP=$(ipconfig getifaddr en0)
 - [RIX C++ Documentation](https://github.com/rix-ros/rix-cpp)
 
 ---
+
+## License
+
+See [LICENSE.md](LICENSE.md) for details.
+
+---
