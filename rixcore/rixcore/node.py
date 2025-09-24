@@ -157,7 +157,6 @@ class Node(Spinner):
         service: str,
     ) -> ServiceClient:
         request = SrvRequest()
-        request.id = Node.__generateID()
         request.name = service
         request.node_id = self.info.id
         request.request_hash = TRequest().hash()
