@@ -1,21 +1,17 @@
 from rixcore.node import Node
 from rixmsg.standard.Header import Header
 from rixcore.timer import Timer
-from rixcore.common import RIXHUB_IP, DEFAULT_IP, RIXHUB_PORT
 
 from time import time_ns
-import argparse
-
-DEFAULT_PORT = 8004
 
 
-def main(args: argparse.Namespace):
-    node = Node("simple_publisher", (args.rixhub, RIXHUB_PORT))
+def main():
+    node = Node("simple_publisher")
     if not node.ok():
         print("Error! Failed to initialize node.")
         return
 
-    pub = node.create_publisher(Header, "/chatter", (args.default_ip, args.port))
+    pub = node.create_publisher(Header, "/chatter")
     if not pub.ok():
         print("Error! Failed to create publisher.")
         return
@@ -33,11 +29,4 @@ def main(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--rixhub", default=RIXHUB_IP, help="RixHub IP address")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="RixHub port")
-    parser.add_argument(
-        "--default_ip", default=DEFAULT_IP, help="Default IP address for publisher"
-    )
-    args = parser.parse_args()
-    main(args)
+    main()

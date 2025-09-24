@@ -1,9 +1,11 @@
 from rixcore.node import Node
 from rixmsg.standard.Header import Header
 
+DEFAULT_PORT = 8004
+
 
 def main():
-    node = Node("simple_subscriber")
+    node = Node("simple_publisher")
     if not node.ok():
         print("Error! Failed to initialize node.")
 

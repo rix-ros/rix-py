@@ -1,20 +1,15 @@
 import cv2
-import time
 import argparse
 
-from rixcore.common import RIXHUB_PORT
 from rixcore.node import Node
-from rixcore.publisher import Publisher
-from rixmsg.sensor.Image import Image
+from rixcore.timer import Timer
 from rixmsg.sensor.CompressedImage import CompressedImage
-from rixmsg.sensor.Image import Image
 
 
-def main(args):
-    hubIP = args.ip
+def main(args: argparse.Namespace):
     camIndex = args.camera
 
-    node = Node("video_pub", (hubIP, RIXHUB_PORT))
+    node = Node("video_pub")
     if not node.ok():
         print("Error! Failed to create node.")
         return
@@ -27,7 +22,7 @@ def main(args):
     cam = cv2.VideoCapture(camIndex)
     msg = CompressedImage()
 
-    def timer_callback(event):
+    def timer_callback(event: Timer.Event):
         ret, frame = cam.read()
         if not ret:
             print("Error! Failed to read frame.")
@@ -50,9 +45,6 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Video Publisher")
-    parser.add_argument(
-        "-i", "--ip", type=str, default="127.0.0.1", help="Hub IP address"
-    )
     parser.add_argument("-c", "--camera", type=int, default=0, help="Camera index")
     args = parser.parse_args()
     main(args)
