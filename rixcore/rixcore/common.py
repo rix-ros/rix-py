@@ -1,7 +1,9 @@
-import socket
 from enum import IntEnum
+from os import environ
 
+RIXHUB_IP = environ.get("RIX_RIXHUB_IP", environ.get("RIX_DEFAULT_IP", "127.0.0.1"))
 RIXHUB_PORT = 48104
+DEFAULT_IP = environ.get("RIX_DEFAULT_IP", "127.0.0.1")
 
 class OPCODE(IntEnum):
     STATUS_RESPONSE = 0

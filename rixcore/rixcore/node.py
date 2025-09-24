@@ -4,6 +4,8 @@ from typing import Callable, Tuple, TypeVar
 from rixmsg.message import Message
 
 from rixcore.common import (
+    DEFAULT_IP,
+    RIXHUB_IP,
     RIXHUB_PORT,
     OPCODE,
 )
@@ -28,11 +30,12 @@ TMsg = TypeVar("TMsg", bound=Message)
 TRequest = TypeVar("TRequest", bound=Message)
 TResponse = TypeVar("TResponse", bound=Message)
 
+
 class Node(Spinner):
     def __init__(
         self,
-        name: str, 
-        rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", RIXHUB_PORT),
+        name: str,
+        rixhub_endpoint: Tuple[str, int] = (RIXHUB_IP, RIXHUB_PORT),
     ):
         self.info = NodeInfo()
         self.info.id = Node.__generateID()
@@ -57,7 +60,7 @@ class Node(Spinner):
             return
         if status.error != 0:
             return
-        
+
         self.registered_flag = True
         self.shutdown_flag = False
 
@@ -91,7 +94,7 @@ class Node(Spinner):
         self,
         TMsg: Callable[[], Message],
         topic: str,
-        endpoint: Tuple[str, int] = ("127.0.0.1", 0),
+        endpoint: Tuple[str, int] = (DEFAULT_IP, 0),
     ) -> Publisher:
         info = PubInfo()
         info.id = Node.__generateID()
@@ -110,7 +113,7 @@ class Node(Spinner):
         TMsg: Callable[[], Message],
         topic: str,
         callback: Callable[[TMsg], None],
-        endpoint: Tuple[str, int] = ("127.0.0.1", 0),
+        endpoint: Tuple[str, int] = (DEFAULT_IP, 0),
     ) -> Subscriber:
         info = SubInfo()
         info.id = Node.__generateID()
@@ -131,7 +134,7 @@ class Node(Spinner):
         TResponse: Callable[[], Message],
         service: str,
         callback: Callable[[TRequest, TResponse], None],
-        endpoint: Tuple[str, int] = ("127.0.0.1", 0),
+        endpoint: Tuple[str, int] = (DEFAULT_IP, 0),
     ) -> Service:
         info = SrvInfo()
         info.id = Node.__generateID()
@@ -162,7 +165,9 @@ class Node(Spinner):
 
         return ServiceClient(request, self.rixhub_endpoint)
 
-    def create_timer(self, duration: float, callback: Callable[[Timer.Event], None]) -> Timer:
+    def create_timer(
+        self, duration: float, callback: Callable[[Timer.Event], None]
+    ) -> Timer:
         timer = Timer(duration, callback)
         self.components.add(timer)
         return timer
@@ -179,18 +184,18 @@ class Node(Spinner):
             return False
         if not client.send_message(OPCODE.PARAM_SET_REQUEST, info):
             return False
-        
+
         op = Operation()
         status = Status()
         if not client.recv_message_with_opcode(op, status):
             return False
-        
+
         if op.opcode != OPCODE.STATUS_RESPONSE:
             return False
-        
+
         if status.error != 0:
             return False
-        
+
         return True
 
     def get_parameter(self, name: str, parameter: Message) -> bool:
@@ -198,22 +203,22 @@ class Node(Spinner):
         info.id = self.info.id
         info.name = name
         info.message_hash = parameter.hash()
-        
+
         client = Socket()
         if not client.connect(self.rixhub_endpoint):
             return False
-        
+
         if not client.send_message(OPCODE.PARAM_GET_REQUEST, info):
             return False
-        
+
         info_received = ParamInfo()
         op = Operation()
         if not client.recv_message_with_opcode(op, info_received):
             return False
-        
+
         if op.opcode != OPCODE.PARAM_GET_RESPONSE:
             return False
-        
+
         parameter.deserialize(bytearray(info_received.data), Message.Offset())
         return True
 
@@ -221,19 +226,19 @@ class Node(Spinner):
         client = Socket()
         if not client.connect(self.rixhub_endpoint):
             return False
-        
+
         node_id = UInt64()
         node_id.data = self.info.id
         if not client.send_message(OPCODE.SYSTEM_GET_REQUEST, node_id):
             return False
-        
+
         op = Operation()
         if not client.recv_message_with_opcode(op, info):
             return False
 
         if op.opcode != OPCODE.SYSTEM_GET_RESPONSE:
             return False
-        
+
         return True
 
     @staticmethod
