@@ -1,6 +1,10 @@
 #!/bin/bash
 
-cp -r rixcore ~/.rix/python/
+set -e
+
+mkdir -p $HOME/.rix/python/
+
+cp -r rixcore $HOME/.rix/python/
 
 # Check if python3.12 is available
 if ! command -v python3.12 &>/dev/null; then
@@ -10,20 +14,20 @@ if ! command -v python3.12 &>/dev/null; then
 fi
 
 # Create virtual environment
-echo "Creating virtual environment in ~/.rix/venv/"
-python3.12 -m venv ~/.rix/venv/
+echo "Creating virtual environment in $HOME/.rix/venv/"
+python3.12 -m venv $HOME/.rix/venv/
 
 # Verify success
 if [ $? -eq 0 ]; then
     echo "Virtual environment created successfully."
-    echo "To activate it: source ~/.rix/bin/activate"
+    echo "To activate it: source $HOME/.rix/bin/activate"
 else
     echo "Failed to create virtual environment."
     exit 2
 fi
 
 echo "Installing rix-py"
-source ~/.rix/venv/bin/activate
-pip install -e ~/.rix/python/rixmsg
-pip install -e ~/.rix/python/rixcore
+source $HOME/.rix/venv/bin/activate
+pip install -e $HOME/.rix/python/rixmsg
+pip install -e $HOME/.rix/python/rixcore
 deactivate

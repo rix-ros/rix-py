@@ -1,14 +1,13 @@
 from rixcore.node import Node
-from rixcore.publisher import Publisher
 from rixmsg.standard.Header import Header
 from rixmsg.mediator.SystemInfo import SystemInfo
-from threading import Thread
-
-from time import time_ns, sleep
 
 
 def main():
-    node = Node.create("param_server_test")
+    node = Node("param_server_test")
+    if not node.ok():
+        print("Failed to create node.")
+        return
 
     header = Header()
     header.frame_id = "Hello, world!"
@@ -16,13 +15,11 @@ def main():
 
     if not node.set_parameter("test_param", header):
         print("Failed to set parameter.")
-        node.shutdown()
         return
 
     other_header = Header()
     if not node.get_parameter("test_param", other_header):
         print("Failed to get parameter.")
-        node.shutdown()
         return
 
     print("Frame ID: " + other_header.frame_id)
@@ -31,7 +28,6 @@ def main():
     system_info = SystemInfo()
     if not node.get_system_info(system_info):
         print("Failed to get system info.")
-        node.shutdown()
         return
 
     print(
