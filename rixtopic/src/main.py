@@ -1,0 +1,214 @@
+import sys
+import os
+
+# This is necessary for using dynamically loaded message types due to PyInstaller limitations
+rixcore_path = os.path.expanduser("~/.rix/python/rixcore")
+rixmsg_path = os.path.expanduser("~/.rix/python/rixmsg")
+sys.path.append(rixcore_path)
+sys.path.append(rixmsg_path)
+
+from rixcore.node import Node
+from rixmsg.mediator.SystemInfo import SystemInfo
+
+import importlib
+import argparse
+import time
+
+ROOT = os.getenv("HOME")
+USAGE = """rixtopic [-h] function [arg]
+
+Functions:
+  list                    - List all active RIX topics
+  echo <topic>            - Print the messages of a topic
+  hz <topic>              - Print the message rate of a topic
+  bw <topic>              - Print the bandwidth of a topic
+"""
+
+
+def hash_to_str(hash: list[int]) -> str:
+    return "".join(f"{part:016x}" for part in hash)
+
+
+def main(args: argparse.Namespace) -> None:
+    function = args.function
+
+    node = Node("rixtopic")
+    if not node.ok():
+        print("Error! Failed to initialize node.")
+        return
+
+    system_info = SystemInfo()
+    if not node.get_system_info(system_info):
+        print("Error! Failed to get system info.")
+        return
+
+    topics_by_hash: dict[str, str] = {}
+    index_path = os.path.join(ROOT, ".rix", "rixmsg", "index.txt")
+    if os.path.exists(index_path):
+        with open(index_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    hash, topic = line.split()
+                    topics_by_hash[hash] = topic
+
+    if function == "list":
+        print("Active RIX topics:")
+        for topic in system_info.topics:
+            topic_hash = hash_to_str(topic.message_hash)
+            message_name = topics_by_hash.get(topic_hash, "Unknown")
+            print(f"  {topic.name} [{message_name}]")
+        return
+
+    if function == "echo":
+        arg = args.arg
+        if not arg:
+            print("Error! 'echo' requires a topic name as an argument.")
+            return
+        topic_name = arg
+        topic_info = next((t for t in system_info.topics if t.name == topic_name), None)
+        if not topic_info:
+            print(f"Topic '{topic_name}' not found.")
+            return
+        topic_hash = hash_to_str(topic_info.message_hash)
+        message_name = topics_by_hash.get(topic_hash)
+        if not message_name:
+            print(f"Message type for topic '{topic_name}' not found in index.")
+            return
+        try:
+            package, name = message_name.split("/")
+        except ValueError:
+            print("Message name must be in the form <package>/<name>")
+            return
+        module_path = f"rixmsg.{package}.{name}"
+        try:
+            module = importlib.import_module(module_path)
+            message_class = getattr(module, name)
+        except (ModuleNotFoundError, AttributeError):
+            print(f"Could not import '{name}' from {module_path}.")
+            return
+
+        def callback(msg) -> None:
+            print(msg)
+
+        sub = node.create_subscriber(message_class, topic_name, callback)
+        if not sub.ok():
+            print("Error! Failed to create subscriber.")
+            return
+
+        node.spin()
+        return
+
+    if function == "hz":
+        arg = args.arg
+        if not arg:
+            print("Error! 'hz' requires a topic name as an argument.")
+            return
+        topic_name = arg
+        topic_info = next((t for t in system_info.topics if t.name == topic_name), None)
+        if not topic_info:
+            print(f"Topic '{topic_name}' not found.")
+            return
+
+        # Create subscriber to measure rate
+        message_hash = topic_info.message_hash
+        topic_hash = hash_to_str(message_hash)
+        message_name = topics_by_hash.get(topic_hash)
+        if not message_name:
+            print(f"Message type for topic '{topic_name}' not found in index.")
+            return
+        try:
+            package, name = message_name.split("/")
+        except ValueError:
+            print("Message name must be in the form <package>/<name>")
+            return
+        module_path = f"rixmsg.{package}.{name}"
+        try:
+            module = importlib.import_module(module_path)
+            message_class = getattr(module, name)
+        except (ModuleNotFoundError, AttributeError):
+            print(f"Could not import '{name}' from {module_path}.")
+            return
+
+        count = 0
+        current_time = time.time()
+
+        def callback(msg) -> None:
+            nonlocal count, current_time
+            count += 1
+            elapsed_time = time.time() - current_time
+            if elapsed_time > 0:
+                print(f"Current rate: {count / elapsed_time:.3f} Hz   ", end="\r")
+
+        sub = node.create_subscriber(message_class, topic_name, callback)
+        if not sub.ok():
+            print("Error! Failed to create subscriber.")
+            return
+        print(f"Measuring message rate on topic '{topic_name}'. Press Ctrl+C to stop.")
+        node.spin()
+        return
+
+    if function == "bw":
+        arg = args.arg
+        if not arg:
+            print("Error! 'bw' requires a topic name as an argument.")
+            return
+        topic_name = arg
+        topic_info = next((t for t in system_info.topics if t.name == topic_name), None)
+        if not topic_info:
+            print(f"Topic '{topic_name}' not found.")
+            return
+
+        # Create subscriber to measure bandwidth
+        message_hash = topic_info.message_hash
+        topic_hash = hash_to_str(message_hash)
+        message_name = topics_by_hash.get(topic_hash)
+        if not message_name:
+            print(f"Message type for topic '{topic_name}' not found in index.")
+            return
+        try:
+            package, name = message_name.split("/")
+        except ValueError:
+            print("Message name must be in the form <package>/<name>")
+            return
+        module_path = f"rixmsg.{package}.{name}"
+        try:
+            module = importlib.import_module(module_path)
+            message_class = getattr(module, name)
+        except (ModuleNotFoundError, AttributeError):
+            print(f"Could not import '{name}' from {module_path}.")
+            return
+
+        total_bytes = 0
+        current_time = time.time()
+
+        def callback(msg) -> None:
+            nonlocal total_bytes, current_time
+            total_bytes += msg.size()
+            elapsed_time = time.time() - current_time
+            if elapsed_time > 0:
+                print(
+                    f"Current bandwidth: {total_bytes / elapsed_time:.3f} B/s   ",
+                    end="\r",
+                )
+
+        sub = node.create_subscriber(message_class, topic_name, callback)
+        if not sub.ok():
+            print("Error! Failed to create subscriber.")
+            return
+        print(f"Measuring bandwidth on topic '{topic_name}'. Press Ctrl+C to stop.")
+        node.spin()
+        return
+
+    print(f"Unknown function '{function}'. Use -h for help.")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="rixtopic CLI", usage=USAGE)
+    parser.add_argument("-v", "--version", action="version", version="rixtopic 1.0")
+    parser.add_argument(
+        "function", type=str, help="Function to call (show, packages, package, create)"
+    )
+    parser.add_argument("arg", type=str, nargs="?", help="Argument for the function")
+    args = parser.parse_args()
+    main(args)

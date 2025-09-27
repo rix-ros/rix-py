@@ -28,6 +28,28 @@ fi
 
 echo "Installing rix-py"
 source $HOME/.rix/venv/bin/activate
+
+pip install pyinstaller
+
+# Create the executable
+python3 -m PyInstaller --clean --strip --optimize 2 --onedir --noupx --name rixtopic rixtopic/src/main.py
+
+# Check if the executable was created
+if [ ! -f "dist/rixtopic/rixtopic" ]; then
+    echo "Error: rixtopic executable not found in dist/rixtopic/"
+    exit 1
+fi
+
+# Copy the required files
+cp -r dist/rixtopic "$HOME/.rix/"
+
+# Create symbolic link to rixtopic
+mkdir -p "$HOME/.rix/bin/"
+ln -sf "$HOME/.rix/rixtopic/rixtopic" "$HOME/.rix/bin/rixtopic"
+
+# Clean up
+rm -rf build/ dist/
+
 pip install -e $HOME/.rix/python/rixmsg
 pip install -e $HOME/.rix/python/rixcore
 deactivate
