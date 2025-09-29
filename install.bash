@@ -29,7 +29,7 @@ fi
 echo "Installing rix-py"
 source $HOME/.rix/venv/bin/activate
 
-pip install pyinstaller
+pip install -r requirements.txt
 
 # Create the executable
 python3 -m PyInstaller --clean --strip --optimize 2 --onedir --noupx --name rixtopic rixtopic/src/main.py
