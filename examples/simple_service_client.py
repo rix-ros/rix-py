@@ -1,7 +1,5 @@
-from rixcore.node import Node
-from rixcore.timer import Timer
-from rixmsg.standard.String import String
-from rixmsg.standard.UInt32 import UInt32
+from rix.core import Node, Timer
+from rix.msg.standard import String, UInt32
 
 
 def main():

@@ -1,30 +1,30 @@
 import random
-from rixcore.socket import Socket
+from rix.core.socket import Socket
 from typing import Callable, Tuple, TypeVar
-from rixmsg.message import Message
+from rix.msg.message import Message
 
-from rixcore.common import (
+from rix.core.common import (
     DEFAULT_IP,
     RIXHUB_IP,
     RIXHUB_PORT,
     OPCODE,
 )
-from rixcore.spinner import Spinner
-from rixmsg.mediator.NodeInfo import NodeInfo
-from rixmsg.mediator.ParamInfo import ParamInfo
-from rixmsg.mediator.PubInfo import PubInfo
-from rixmsg.mediator.SrvInfo import SrvInfo
-from rixmsg.mediator.SrvRequest import SrvRequest
-from rixmsg.mediator.SubInfo import SubInfo
-from rixmsg.mediator.SystemInfo import SystemInfo
-from rixmsg.mediator.Operation import Operation
-from rixmsg.standard.UInt64 import UInt64
-from rixmsg.mediator.Status import Status
-from rixcore.publisher import Publisher
-from rixcore.service import Service
-from rixcore.service_client import ServiceClient
-from rixcore.subscriber import Subscriber
-from rixcore.timer import Timer
+from rix.core.spinner import Spinner
+from rix.msg.mediator.NodeInfo import NodeInfo
+from rix.msg.mediator.ParamInfo import ParamInfo
+from rix.msg.mediator.PubInfo import PubInfo
+from rix.msg.mediator.SrvInfo import SrvInfo
+from rix.msg.mediator.SrvRequest import SrvRequest
+from rix.msg.mediator.SubInfo import SubInfo
+from rix.msg.mediator.SystemInfo import SystemInfo
+from rix.msg.mediator.Operation import Operation
+from rix.msg.standard.UInt64 import UInt64
+from rix.msg.mediator.Status import Status
+from rix.core.publisher import Publisher
+from rix.core.service import Service
+from rix.core.service_client import ServiceClient
+from rix.core.subscriber import Subscriber
+from rix.core.timer import Timer
 
 TMsg = TypeVar("TMsg", bound=Message)
 TRequest = TypeVar("TRequest", bound=Message)

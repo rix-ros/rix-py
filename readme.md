@@ -57,7 +57,7 @@ Create a publisher that sends `Header` messages at 1 Hz:
 
 ```python
 from rixcore.node import Node
-from rixmsg.standard.Header import Header
+from rix.msg.standard.Header import Header
 from rixcore.timer import Timer
 from time import time_ns
 
@@ -81,7 +81,7 @@ Register a subscriber on the same topic:
 
 ```python
 from rixcore.node import Node
-from rixmsg.standard.Header import Header
+from rix.msg.standard.Header import Header
 
 def callback(msg: Header):
     print(f"Received: {msg.frame_id}, {msg.stamp.sec}.{msg.stamp.nsec}")
@@ -97,8 +97,8 @@ Provide a request-response service:
 
 ```python
 from rixcore.node import Node
-from rixmsg.standard.String import String
-from rixmsg.standard.UInt32 import UInt32
+from rix.msg.standard.String import String
+from rix.msg.standard.UInt32 import UInt32
 
 def service_callback(req: UInt32, res: String):
     alphabet = "abcdefghijklmnopqrstuvwxyz"
@@ -115,8 +115,8 @@ Call a service from another node:
 
 ```python
 from rixcore.node import Node
-from rixmsg.standard.String import String
-from rixmsg.standard.UInt32 import UInt32
+from rix.msg.standard.String import String
+from rix.msg.standard.UInt32 import UInt32
 
 node = Node("service_client_node")
 service_client = node.create_service_client(UInt32, String, "/alphabet")

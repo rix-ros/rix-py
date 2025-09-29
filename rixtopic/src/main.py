@@ -7,8 +7,8 @@ rixmsg_path = os.path.expanduser("~/.rix/python/rixmsg")
 sys.path.append(rixcore_path)
 sys.path.append(rixmsg_path)
 
-from rixcore.node import Node
-from rixmsg.mediator.SystemInfo import SystemInfo
+from rix.core import Node
+from rix.msg.mediator import SystemInfo
 
 import importlib
 import argparse
@@ -80,7 +80,7 @@ def main(args: argparse.Namespace) -> None:
         except ValueError:
             print("Message name must be in the form <package>/<name>")
             return
-        module_path = f"rixmsg.{package}.{name}"
+        module_path = f"rix.msg.{package}.{name}"
         try:
             module = importlib.import_module(module_path)
             message_class = getattr(module, name)
@@ -122,7 +122,7 @@ def main(args: argparse.Namespace) -> None:
         except ValueError:
             print("Message name must be in the form <package>/<name>")
             return
-        module_path = f"rixmsg.{package}.{name}"
+        module_path = f"rix.msg.{package}.{name}"
         try:
             module = importlib.import_module(module_path)
             message_class = getattr(module, name)
@@ -171,7 +171,7 @@ def main(args: argparse.Namespace) -> None:
         except ValueError:
             print("Message name must be in the form <package>/<name>")
             return
-        module_path = f"rixmsg.{package}.{name}"
+        module_path = f"rix.msg.{package}.{name}"
         try:
             module = importlib.import_module(module_path)
             message_class = getattr(module, name)

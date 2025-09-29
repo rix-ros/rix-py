@@ -1,16 +1,16 @@
 import threading
 from typing import Tuple
 
-from rixcore.common import (
+from rix.core.common import (
     OPCODE,
 )
-from rixcore.socket import Socket
-from rixmsg.message import Message
-from rixmsg.mediator.PubInfo import PubInfo
-from rixmsg.mediator.Status import Status
-from rixmsg.mediator.Operation import Operation
-from rixmsg.standard.UInt32 import UInt32
-from rixcore.spinner import Spinner
+from rix.core.socket import Socket
+from rix.msg.message import Message
+from rix.msg.mediator.PubInfo import PubInfo
+from rix.msg.mediator.Status import Status
+from rix.msg.mediator.Operation import Operation
+from rix.msg.standard.UInt32 import UInt32
+from rix.core.spinner import Spinner
 
 class Publisher(Spinner):
     def __init__(

@@ -4,7 +4,7 @@ set -e
 
 mkdir -p $HOME/.rix/python/
 
-cp -r rixcore $HOME/.rix/python/
+cp -r rix $HOME/.rix/python/
 
 # Check if python3.12 is available
 if ! command -v python3.12 &>/dev/null; then
@@ -50,6 +50,5 @@ ln -sf "$HOME/.rix/rixtopic/rixtopic" "$HOME/.rix/bin/rixtopic"
 # Clean up
 rm -rf build/ dist/
 
-pip install -e $HOME/.rix/python/rixmsg
-pip install -e $HOME/.rix/python/rixcore
+pip install -e $HOME/.rix/python/rix
 deactivate
