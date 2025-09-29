@@ -2,10 +2,8 @@ import sys
 import os
 
 # This is necessary for using dynamically loaded message types due to PyInstaller limitations
-rixcore_path = os.path.expanduser("~/.rix/python/rixcore")
-rixmsg_path = os.path.expanduser("~/.rix/python/rixmsg")
-sys.path.append(rixcore_path)
-sys.path.append(rixmsg_path)
+rix_path = os.path.expanduser("~/.rix/python/rix")
+sys.path.append(rix_path)
 
 from rix.core import Node
 from rix.msg.mediator import SystemInfo
