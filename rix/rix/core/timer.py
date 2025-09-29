@@ -1,6 +1,6 @@
 import time
 from typing import Callable
-from rixcore.spinner import Spinner
+from rix.core.spinner import Spinner
 
 
 class Timer(Spinner):

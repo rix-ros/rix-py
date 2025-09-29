@@ -3,16 +3,16 @@ import socket
 import select
 from typing import Tuple, Callable
 
-from rixcore.common import (
+from rix.core.common import (
     OPCODE,
 )
-from rixcore.socket import Socket
-from rixmsg.message import Message
-from rixmsg.standard.UInt32 import UInt32
-from rixmsg.mediator.SrvInfo import SrvInfo
-from rixmsg.mediator.Status import Status
-from rixmsg.mediator.Operation import Operation
-from rixcore.spinner import Spinner
+from rix.core.socket import Socket
+from rix.msg.message import Message
+from rix.msg.standard.UInt32 import UInt32
+from rix.msg.mediator.SrvInfo import SrvInfo
+from rix.msg.mediator.Status import Status
+from rix.msg.mediator.Operation import Operation
+from rix.core.spinner import Spinner
 
 
 class Service(Spinner):

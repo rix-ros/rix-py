@@ -1,7 +1,5 @@
-from rixcore.node import Node
-from rixmsg.standard.Header import Header
-
-DEFAULT_PORT = 8004
+from rix.core import Node
+from rix.msg.standard import Header
 
 
 def main():

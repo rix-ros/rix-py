@@ -1,6 +1,5 @@
-from rixcore.node import Node
-from rixmsg.standard.Header import Header
-from rixcore.timer import Timer
+from rix.core import Node, Timer
+from rix.msg.standard import Header
 
 from time import time_ns
 

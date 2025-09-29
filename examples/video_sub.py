@@ -3,9 +3,8 @@ import numpy as np
 import argparse
 from threading import Lock
 
-from rixcore.node import Node
-from rixcore.timer import Timer
-from rixmsg.sensor.CompressedImage import CompressedImage
+from rix.core import Node, Timer
+from rix.msg.sensor import CompressedImage
 
 frame = None
 frame_mutex = Lock()

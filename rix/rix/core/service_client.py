@@ -1,15 +1,15 @@
 import threading
 from typing import Tuple
 
-from rixcore.common import (
+from rix.core.common import (
     OPCODE,
 )
-from rixcore.socket import Socket
-from rixmsg.message import Message
-from rixmsg.standard.UInt32 import UInt32
-from rixmsg.mediator.SrvRequest import SrvRequest
-from rixmsg.mediator.SrvResponse import SrvResponse
-from rixmsg.mediator.Operation import Operation
+from rix.core.socket import Socket
+from rix.msg.message import Message
+from rix.msg.standard.UInt32 import UInt32
+from rix.msg.mediator.SrvRequest import SrvRequest
+from rix.msg.mediator.SrvResponse import SrvResponse
+from rix.msg.mediator.Operation import Operation
 
 
 class ServiceClient:

@@ -1,7 +1,7 @@
 import socket
 import select
-from rixmsg.message import Message
-from rixmsg.mediator.Operation import Operation
+from rix.msg.message import Message
+from rix.msg.mediator.Operation import Operation
 
 class Socket:
     def __init__(self):
