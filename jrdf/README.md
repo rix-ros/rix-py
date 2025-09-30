@@ -1,6 +1,6 @@
 # URDF to JSON Converter
 
-This tool converts [URDF](http://wiki.ros.org/urdf) (Unified Robot Description Format) files into a structured JSON format for easier integration with other systems.
+This tool converts [URDF](http://wiki.ros.org/urdf) (Unified Robot Description Format) files into a JSON format for enhanced readability.
 
 ---
 
@@ -17,21 +17,15 @@ This tool converts [URDF](http://wiki.ros.org/urdf) (Unified Robot Description F
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.12
 - `urdf_parser_py`
-- `numpy`
-
-Install dependencies:
-```sh
-pip install urdf_parser_py numpy
-```
 
 ---
 
 ## Usage
 
 ```sh
-python3 urdf_to_json.py <robot.urdf>
+jrdf <robot.urdf>
 ```
 
 This will generate `<robot.json>` in the same directory.
@@ -48,7 +42,7 @@ This will generate `<robot.json>` in the same directory.
 ## Example
 
 ```sh
-python urdf_to_json.py my_robot.urdf
+jrdf my_robot.urdf
 # Output: my_robot.json
 ```
 ---
