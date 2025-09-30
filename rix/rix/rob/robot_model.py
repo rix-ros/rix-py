@@ -2,17 +2,14 @@ import numpy as np
 import json
 from scipy.spatial.transform import Rotation as R
 from time import time_ns
-from rix.rob.joint import Joint, JointType
+from rix.rob.joint import Joint
 from rix.rob.link import Link
 from rix.rob.msg_util import (
-    transform_to_matrix,
     matrix_to_transform,
-    interpolate_transform,
-    interpolate_transform_msg,
 )
 from rix.msg.geometry import TF, TransformStamped
 from rix.msg.sensor import JS
-from rix.msg.standard import Header, Time
+from rix.msg.standard import Time
 
 
 class RobotModel:
@@ -31,8 +28,7 @@ class RobotModel:
         for link_data in data.get("links", []):
             link = Link.from_json(link_data)
             self.links[link.name] = link
-            if link.is_root():
-                self.root = link
+
         # Parse joints
         for joint_data in data.get("joints", []):
             joint = Joint.from_json(joint_data)
@@ -47,6 +43,24 @@ class RobotModel:
                     raise ValueError(
                         f"Mimic joint '{mimic_name}' not found for joint '{joint.name}'"
                     )
+        # Resolve Link parent-child relationships
+        for joint in self.joints.values():
+            if joint.parent in self.links and joint.child in self.links:
+                parent_link = self.links[joint.parent]
+                parent_link.children.append(joint.name)
+                child_link = self.links[joint.child]
+                child_link.parent = parent_link.name
+            else:
+                raise ValueError(
+                    f"Joint '{joint.name}' has invalid parent '{joint.parent}' or child '{joint.child}' link."
+                )
+        # Identify root link
+        for link in self.links.values():
+            if link.is_root():
+                self.root = link
+                break
+        if self.root is None:
+            raise ValueError("No root link found in the robot model.")
 
     def get_joint_states(self) -> JS:
         js = JS()
@@ -63,7 +77,7 @@ class RobotModel:
         total_nanoseconds = time_ns()
         stamp.sec = total_nanoseconds // 1_000_000_000
         stamp.nsec = total_nanoseconds % 1_000_000_000
-        tf.transforms = [TransformStamped()] * (len(self.joints) + 1)
+        tf.transforms = [TransformStamped() for _ in range(len(self.joints) + 1)]
 
         tf.transforms[0].header.stamp = stamp
         tf.transforms[0].header.seq = 0
@@ -73,7 +87,7 @@ class RobotModel:
 
         index = 1
         link_stack = [self.root]
-        while link_stack:
+        while len(link_stack) > 0:
             current_link = link_stack.pop()
             for child_joint in current_link.children:
                 joint = self.joints[child_joint]
@@ -84,8 +98,9 @@ class RobotModel:
                 tf.transforms[index].header.frame_id = current_link.name
                 tf.transforms[index].child_frame_id = child_link.name
 
-                T = joint.origin @ joint.transform()
-                tf.transforms[index].transform = matrix_to_transform(T)
+                tf.transforms[index].transform = matrix_to_transform(
+                    joint.origin @ joint.transform()
+                )
                 index += 1
 
                 link_stack.append(child_link)
@@ -144,4 +159,3 @@ class RobotModel:
                 self.joints[state.name].set_state(state)
             else:
                 raise ValueError(f"Joint '{state.name}' not found in robot model.")
-          

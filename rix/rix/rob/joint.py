@@ -5,6 +5,9 @@ import enum
 
 def convert_json_origin(origin: dict) -> np.ndarray:
     """Convert a JSON origin dictionary to a 4x4 transformation matrix."""
+    if origin is None:
+        return np.eye(4)
+
     xyz = origin.get("xyz", [0.0, 0.0, 0.0])
     rpy = origin.get("rpy", [0.0, 0.0, 0.0])
     translation = np.array(xyz)
@@ -29,6 +32,8 @@ class JointDynamics:
 
     @staticmethod
     def from_json(data: dict) -> "JointDynamics":
+        if data is None:
+            return JointDynamics()
         damping = data.get("damping", 0.0)
         friction = data.get("friction", 0.0)
         return JointDynamics(damping, friction)
@@ -49,6 +54,8 @@ class JointLimits:
 
     @staticmethod
     def from_json(data: dict) -> "JointLimits":
+        if data is None:
+            return JointLimits()
         lower = data.get("lower", 0.0)
         upper = data.get("upper", 0.0)
         effort = data.get("effort", 0.0)
@@ -67,6 +74,8 @@ class JointMimic:
 
     @staticmethod
     def from_json(data: dict) -> "JointMimic":
+        if data is None:
+            return JointMimic()
         offset = data.get("offset", 0.0)
         multiplier = data.get("multiplier", 1.0)
         # Note: 'joint' reference will be resolved after all joints are created
@@ -145,9 +154,9 @@ class Joint:
             type = JointType(type_str)
         except ValueError:
             type = JointType.UNKNOWN
-        limits = JointLimits.from_json(data.get("limits", {}))
-        dynamics = JointDynamics.from_json(data.get("dynamics", {}))
-        mimic = JointMimic.from_json(data.get("mimic", {}))
+        limits = JointLimits.from_json(data.get("limits", None))
+        dynamics = JointDynamics.from_json(data.get("dynamics", None))
+        mimic = JointMimic.from_json(data.get("mimic", None))
         name = data.get("name", "")
         parent = data.get("parent", "")
         child = data.get("child", "")

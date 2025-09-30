@@ -16,11 +16,13 @@ class Geometry:
 
     @staticmethod
     def from_json(data: dict) -> "Geometry":
+        if data is None:
+            raise ValueError("Geometry data is None")
         geom_type = GeometryType[data["type"].upper()]
         if geom_type == GeometryType.SPHERE:
             return Sphere(radius=data["radius"])
         elif geom_type == GeometryType.BOX:
-            return Box(dim=np.array(data["dim"]))
+            return Box(size=np.array(data["size"]))
         elif geom_type == GeometryType.CYLINDER:
             return Cylinder(radius=data["radius"], length=data["length"])
         elif geom_type == GeometryType.MESH:
@@ -38,9 +40,9 @@ class Sphere(Geometry):
 
 
 class Box(Geometry):
-    def __init__(self, dim: np.ndarray):
+    def __init__(self, size: np.ndarray):
         super().__init__(GeometryType.BOX)
-        self.dim = dim  # dim should be a numpy array of shape (3,)
+        self.size = size  # size should be a numpy array of shape (3,)
 
 
 class Cylinder(Geometry):
@@ -67,6 +69,8 @@ class Material:
 
     @staticmethod
     def from_json(data: dict) -> "Material":
+        if data is None:
+            return Material("default", np.array([0.8, 0.8, 0.8, 1.0]), "")
         name = data.get("name", "")
         color = np.array(data.get("color", [0.8, 0.8, 0.8, 1.0]))
         texture_filename = data.get("texture_filename", "")
@@ -96,7 +100,9 @@ class Inertial:
 
     @staticmethod
     def from_json(data: dict) -> "Inertial":
-        origin = convert_json_origin(data.get("origin", {}))
+        if data is None:
+            return Inertial(np.eye(4), 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0)
+        origin = convert_json_origin(data.get("origin", None))
         mass = data.get("mass", 0.0)
         inertia = data.get("inertia", {})
         ixx = inertia.get("ixx", 0.0)
@@ -116,9 +122,9 @@ class Visual:
 
     @staticmethod
     def from_json(data: dict) -> "Visual":
-        origin = convert_json_origin(data.get("origin", {}))
-        geometry = Geometry.from_json(data.get("geometry", {}))
-        material = Material.from_json(data.get("material", {}))
+        origin = convert_json_origin(data.get("origin", None))
+        geometry = Geometry.from_json(data.get("geometry", None))
+        material = Material.from_json(data.get("material", None))
         return Visual(origin, geometry, material)
 
 
@@ -129,8 +135,8 @@ class Collision:
 
     @staticmethod
     def from_json(data: dict) -> "Collision":
-        origin = convert_json_origin(data.get("origin", {}))
-        geometry = Geometry.from_json(data.get("geometry", {}))
+        origin = convert_json_origin(data.get("origin", None))
+        geometry = Geometry.from_json(data.get("geometry", None))
         return Collision(origin, geometry)
 
 
@@ -159,9 +165,7 @@ class Link:
             Inertial.from_json(data["inertial"]) if "inertial" in data else None
         )
         name = data.get("name", "")
-        parent = data.get("parent", "")
-        children = data.get("children", [])
-        return Link(visuals, collisions, inertial, name, parent, children)
+        return Link(visuals, collisions, inertial, name)
 
     def is_root(self) -> bool:
         return self.parent == ""
