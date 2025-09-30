@@ -3,6 +3,7 @@ from enum import Enum
 import numpy as np
 from rix.rob.joint import convert_json_origin
 
+
 class GeometryType(Enum):
     SPHERE = "SPHERE"
     BOX = "BOX"
@@ -62,9 +63,7 @@ class Mesh(Geometry):
 class Material:
     def __init__(self, name: str, color: np.ndarray, texture_filename: str = ""):
         self.name = name
-        self.color = (
-            color  # color should be a numpy array of shape (4,) representing RGBA
-        )
+        self.color = color
         self.texture_filename = texture_filename
 
     @staticmethod
@@ -161,9 +160,7 @@ class Link:
     def from_json(data: dict) -> "Link":
         visuals = [Visual.from_json(v) for v in data.get("visuals", [])]
         collisions = [Collision.from_json(c) for c in data.get("collisions", [])]
-        inertial = (
-            Inertial.from_json(data["inertial"]) if "inertial" in data else None
-        )
+        inertial = Inertial.from_json(data["inertial"]) if "inertial" in data else None
         name = data.get("name", "")
         return Link(visuals, collisions, inertial, name)
 

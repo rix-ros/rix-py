@@ -3,7 +3,7 @@ import json
 from scipy.spatial.transform import Rotation as R
 from time import time_ns
 from rix.rob.joint import Joint
-from rix.rob.link import Link
+from rix.rob.link import Link, Material
 from rix.rob.msg_util import (
     matrix_to_transform,
 )
@@ -18,11 +18,17 @@ class RobotModel:
         self.joints: dict[str, Joint] = {}
         self.root: Link | None = None
         self.world_to_root: np.ndarray = np.eye(4)
+        self.materials: dict[str, Material] = {}
         self.from_json(filename)
 
     def from_json(self, filename: str) -> None:
         with open(filename, "r") as f:
             data = json.load(f)
+
+        # Parse materials
+        for material_data in data.get("materials", []):
+            material = Material.from_json(material_data)
+            self.materials[material.name] = material
 
         # Parse links
         for link_data in data.get("links", []):

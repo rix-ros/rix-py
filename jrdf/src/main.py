@@ -1,10 +1,30 @@
-import json
-import argparse
-from urdf_parser_py.urdf import URDF
-
+import sys
 import os
 
+# This is necessary for using dynamically loaded message types due to PyInstaller limitations
+rix_path = os.path.expanduser("~/.rix/python/rix")
+sys.path.append(rix_path)
+
+from rix.rob import RobotModel
+from open3d_util import Open3DRobotModel
+
+import json
+import argparse
+import open3d as o3d
+from urdf_parser_py.urdf import URDF
+
+
 HOME = os.path.expanduser("~")
+USAGE = """jrdf [-h] function [arg]
+
+Functions:
+  convert <input.urdf> [output.json] - Convert a URDF file to JSON
+  mesh <name> <mesh file/dir>        - Install mesh files to ~/.rix/models/<name>/
+  validate <input.json>              - Validate a JRDF JSON file
+  visualize <input.json>             - Visualize a JRDF JSON file
+  info <input.json>                  - Print information about a JRDF JSON file
+"""
+
 
 def find_file(filename: str, path: str) -> str | None:
     for entry in os.listdir(path):
@@ -15,13 +35,15 @@ def find_file(filename: str, path: str) -> str | None:
             return full_path
     return None
 
+
 def find_model_file(filename: str) -> str | None:
     path = find_file(os.path.basename(filename), HOME + "/.rix/models/")
     if path is None:
         return None
     return path.split(HOME + "/.rix/models/")[1]
 
-def main(args):
+
+def convert(urdf_file: str, output_file: str | None) -> None:
     # Code here
     jrdf: dict = {
         "name": "",
@@ -30,7 +52,7 @@ def main(args):
     }
 
     # Use URDF library to store data in the jrdf dict
-    robot = URDF.from_xml_file(args.filename)
+    robot = URDF.from_xml_file(urdf_file)
 
     jrdf["name"] = robot.name
 
@@ -210,7 +232,7 @@ def main(args):
                 joint_dict["dynamics"]["damping"] = joint.dynamics.damping
             if joint.dynamics.friction is not None:
                 joint_dict["dynamics"]["friction"] = joint.dynamics.friction
-        
+
         if joint.mimic is not None:
             joint_dict["mimic"] = {}
             if joint.mimic.multiplier is not None:
@@ -222,15 +244,127 @@ def main(args):
 
         jrdf["joints"].append(joint_dict)
 
-    output_filename = args.filename.replace(".urdf", ".json")
+    if output_file is not None:
+        output_filename = output_file
+    else:
+        output_filename = urdf_file.replace(".urdf", ".json")
     with open(output_filename, "w") as out:
         json.dump(jrdf, out, indent=2)
 
 
+def mesh(name: str, mesh_path: str) -> None:
+    dest_dir = os.path.join(HOME, ".rix", "models", name)
+    os.makedirs(dest_dir, exist_ok=True)
+
+    if os.path.isdir(mesh_path):
+        for entry in os.listdir(mesh_path):
+            full_path = os.path.join(mesh_path, entry)
+            if os.path.isfile(full_path):
+                dest_path = os.path.join(dest_dir, entry)
+                with open(full_path, "rb") as src_file:
+                    with open(dest_path, "wb") as dest_file:
+                        dest_file.write(src_file.read())
+        print(f"Installed all files from directory '{mesh_path}' to '{dest_dir}'")
+    elif os.path.isfile(mesh_path):
+        dest_path = os.path.join(dest_dir, os.path.basename(mesh_path))
+        with open(mesh_path, "rb") as src_file:
+            with open(dest_path, "wb") as dest_file:
+                dest_file.write(src_file.read())
+        print(f"Installed file '{mesh_path}' to '{dest_path}'")
+    else:
+        print(f"Error: '{mesh_path}' is neither a file nor a directory.")
+
+
+def validate(jrdf_file: str) -> None:
+    try:
+        with open(jrdf_file, "r") as f:
+            jrdf = json.load(f)
+
+        # TODO: Implement full JSON schema validation
+        if "name" not in jrdf or not isinstance(jrdf["name"], str):
+            print("Invalid JRDF: Missing or invalid 'name' field.")
+            return
+
+        if "links" not in jrdf or not isinstance(jrdf["links"], list):
+            print("Invalid JRDF: Missing or invalid 'links' field.")
+            return
+
+        if "joints" not in jrdf or not isinstance(jrdf["joints"], list):
+            print("Invalid JRDF: Missing or invalid 'joints' field.")
+            return
+
+        print(f"JRDF file '{jrdf_file}' is valid.")
+    except Exception as e:
+        print(f"Error validating JRDF file '{jrdf_file}': {e}")
+
+
+def visualize(jrdf_file: str) -> None:
+    try:
+        print(f"Visualizing JRDF file '{jrdf_file}'...")
+        robot_model = RobotModel(jrdf_file)
+        vis = o3d.visualization.Visualizer()
+        vis.create_window(window_name="JRDF Visualizer", width=800, height=600)
+        o3d_robot = Open3DRobotModel(robot_model, vis)
+
+        vis.run()
+        vis.destroy_window()
+
+    except Exception as e:
+        print(f"Error visualizing JRDF file '{jrdf_file}': {e}")
+
+
+def main(args: argparse.Namespace) -> None:
+    function = args.function
+
+    if function == "convert":
+        urdf_file = args.arg
+        if not urdf_file:
+            print("Error! 'convert' requires an input URDF file as an argument.")
+            return
+        output_file = None
+        if len(args.extra) > 0:
+            output_file = args.extra[0]
+        convert(urdf_file, output_file)
+        return
+
+    if function == "mesh":
+        if not args.arg or len(args.extra) == 0:
+            print(
+                "Error! 'mesh' requires a name and a mesh file or directory as arguments."
+            )
+            return
+        name = args.arg
+        mesh_path = args.extra[0]
+        mesh(name, mesh_path)
+        return
+
+    if function == "validate":
+        jrdf_file = args.arg
+        if not jrdf_file:
+            print("Error! 'validate' requires an input JRDF file as an argument.")
+            return
+        validate(jrdf_file)
+        return
+
+    if function == "visualize":
+        jrdf_file = args.arg
+        if not jrdf_file:
+            print("Error! 'visualize' requires an input JRDF file as an argument.")
+            return
+        visualize(jrdf_file)
+        return
+
+    print("Error! Unknown function:", function)
+    print(USAGE)
+
+
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(prog="jrdf", description="Convert URDF to JSON")
-    parser.add_argument("filename")
-
+    parser = argparse.ArgumentParser(description="jrdf CLI", usage=USAGE)
+    parser.add_argument("-v", "--version", action="version", version="jrdf 1.0")
+    parser.add_argument("function", type=str, help="Function to call (convert, mesh)")
+    parser.add_argument(
+        "arg", type=str, nargs="?", help="Primary argument for the function"
+    )
+    parser.add_argument("extra", nargs="*", help="Extra arguments for the function")
     args = parser.parse_args()
     main(args)

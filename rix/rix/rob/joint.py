@@ -78,8 +78,8 @@ class JointMimic:
             return JointMimic()
         offset = data.get("offset", 0.0)
         multiplier = data.get("multiplier", 1.0)
-        # Note: 'joint' reference will be resolved after all joints are created
-        return JointMimic(offset, multiplier, None)
+        name = data.get("name", "")
+        return JointMimic(offset, multiplier, name)
 
 
 class Joint:

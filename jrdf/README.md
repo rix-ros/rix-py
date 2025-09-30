@@ -1,6 +1,6 @@
-# URDF to JSON Converter
+# URDF to JSON Converter (`jrdf`)
 
-This tool converts [URDF](http://wiki.ros.org/urdf) (Unified Robot Description Format) files into a JSON format for enhanced readability.
+This tool converts [URDF](http://wiki.ros.org/urdf) (Unified Robot Description Format) files into a JSON format for enhanced readability and provides utilities for working with robot models.
 
 ---
 
@@ -12,6 +12,9 @@ This tool converts [URDF](http://wiki.ros.org/urdf) (Unified Robot Description F
 - Handles multiple visuals and collisions per link
 - Looks up mesh files in `~/.rix/models/`
 - Outputs a `.json` file with the same name as the input `.urdf`
+- Installs mesh files to the local model directory
+- Validates JRDF JSON files
+- Visualizes robot models from JRDF JSON files
 
 ---
 
@@ -19,16 +22,29 @@ This tool converts [URDF](http://wiki.ros.org/urdf) (Unified Robot Description F
 
 - Python 3.12
 - `urdf_parser_py`
+- `open3d` (for visualization)
 
 ---
 
 ## Usage
 
 ```sh
-jrdf <robot.urdf>
+jrdf <function> [arguments]
 ```
 
-This will generate `<robot.json>` in the same directory.
+### Functions
+
+- `convert <input.urdf> [output.json]`  
+  Convert a URDF file to JSON.
+
+- `mesh <name> <mesh file/dir>`  
+  Install mesh files to `~/.rix/models/<name>/`.
+
+- `validate <input.json>`  
+  Validate a JRDF JSON file.
+
+- `visualize <input.json>`  
+  Visualize a JRDF JSON file.
 
 ---
 
@@ -36,15 +52,33 @@ This will generate `<robot.json>` in the same directory.
 
 - Mesh files referenced in the URDF should be placed in `~/.rix/models/`.
 - Warnings are printed if mesh files cannot be found.
+- Visualization requires `open3d` to be installed.
 
 ---
 
-## Example
+## Examples
 
+Convert URDF to JSON:
 ```sh
-jrdf my_robot.urdf
+jrdf convert my_robot.urdf
 # Output: my_robot.json
 ```
+
+Install mesh files:
+```sh
+jrdf mesh my_robot meshes/
+```
+
+Validate a JRDF file:
+```sh
+jrdf validate my_robot.json
+```
+
+Visualize a robot model:
+```sh
+jrdf visualize my_robot.json
+```
+
 ---
 
 ## License
