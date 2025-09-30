@@ -9,6 +9,10 @@
 - 🤖 **Robotics-Ready:** Designed for modern robotics applications.
 - 🔒 **Reliable:** TCP-based communication ensures message integrity; loosely-coupled nodes provide system stability across distributed environments.
 
+### Support for Robotics Applications
+- 🌳 **Transformation Trees:** Built-in support for 3D spatial transform trees (`rix/tf`), including frame graph management, transform broadcasting/listening, and time-based interpolation.
+- 🦾 **Robot Model & Kinematics:** Parse robot descriptions from JSON (JRDF), manage kinematic chains, and perform forward/inverse kinematics with the `rix/rob` module.
+
 RIX-PY makes it easy to develop complex robotic systems, offering a clean API and powerful tools for node registration, topic management, and service handling.
 
 ---
@@ -24,9 +28,9 @@ bash install.sh
 ```
 
 This will:
-- Copy the `rixcore` Python package to `$HOME/.rix/python/`
+- Copy the `rix` Python package to `$HOME/.rix/python/`
 - Create a Python 3.12 virtual environment in `$HOME/.rix/venv/`
-- Install `rixmsg` and `rixcore` in editable mode
+- Install `rix` in editable mode
 
 **Note:** You need Python 3.12 installed and available in your PATH.
 
@@ -142,7 +146,7 @@ If you do not have a static IP address, you can modify the `~/.rix/setup.bash` f
 
 On Linux:
 ```bash
-export RIX_DEFAULT_IP=$(hostname -I)
+export RIX_DEFAULT_IP=$(hostname -I | xargs)
 ```
 
 On MacOS:

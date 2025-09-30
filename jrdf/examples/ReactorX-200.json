@@ -1,0 +1,757 @@
+{
+  "joints": [
+    {
+      "axis": [0.0, 0.0, 1.0],
+      "child": "/shoulder_link",
+      "limits": {
+        "effort": 100.0,
+        "lower": -3.141592653589793,
+        "upper": 3.141592653589793,
+        "velocity": 3.141592653589793
+      },
+      "name": "waist",
+      "origin": {
+        "rpy": [0.0, 0.0, 3.141592653589793],
+        "xyz": [0.0, 0.0, 0.065]
+      },
+      "parent": "/base_link",
+      "type": "revolute"
+    },
+    {
+      "axis": [0.0, -1.0, 0.0],
+      "child": "/upper_arm_link",
+      "limits": {
+        "effort": 100.0,
+        "lower": -1.8675022996339325,
+        "upper": 1.9373154697137058,
+        "velocity": 1.0
+      },
+      "name": "shoulder",
+      "origin": {
+        "rpy": [0.0, 0.0, 0.0],
+        "xyz": [0.0, 0.0, 0.03891]
+      },
+      "parent": "/shoulder_link",
+      "type": "revolute"
+    },
+    {
+      "axis": [0.0, 1.0, 0.0],
+      "child": "/forearm_link",
+      "limits": {
+        "effort": 100.0,
+        "lower": -1.6231562043547265,
+        "upper": 1.8849555921538759,
+        "velocity": 3.141592653589793
+      },
+      "name": "elbow",
+      "origin": {
+        "rpy": [3.141592653589793, 0.0, 0.0],
+        "xyz": [0.05, 0.0, 0.2]
+      },
+      "parent": "/upper_arm_link",
+      "type": "revolute"
+    },
+    {
+      "axis": [0.0, 1.0, 0.0],
+      "child": "/wrist_link",
+      "limits": {
+        "effort": 100.0,
+        "lower": -2.1467549799530254,
+        "upper": 1.7453292519943295,
+        "velocity": 3.141592653589793
+      },
+      "name": "wrist_angle",
+      "origin": {
+        "rpy": [0.0, 0.0, 0.0],
+        "xyz": [0.2, 0.0, 0.0]
+      },
+      "parent": "/forearm_link",
+      "type": "revolute"
+    },
+    {
+      "axis": [1.0, 0.0, 0.0],
+      "child": "/gripper_link",
+      "limits": {
+        "effort": 100.0,
+        "lower": -3.141592653589793,
+        "upper": 3.141592653589793,
+        "velocity": 3.141592653589793
+      },
+      "name": "wrist_rotate",
+      "origin": {
+        "rpy": [-3.141592653589793, 0.0, 0.0],
+        "xyz": [0.065, 0.0, 0.0]
+      },
+      "parent": "/wrist_link",
+      "type": "revolute"
+    },
+    {
+      "axis": [1.0, 0.0, 0.0],
+      "child": "/ee_arm_link",
+      "name": "ee_arm",
+      "origin": {
+        "rpy": [0.0, 0.0, 0.0],
+        "xyz": [0.043, 0.0, 0.0]
+      },
+      "parent": "/gripper_link",
+      "type": "fixed"
+    },
+    {
+      "axis": [1.0, 0.0, 0.0],
+      "child": "/gripper_prop_link",
+      "limits": {
+        "effort": 100.0,
+        "lower": 0,
+        "upper": 0,
+        "velocity": 3.141592653589793
+      },
+      "name": "gripper",
+      "origin": {
+        "rpy": [0.0, 0.0, 0.0],
+        "xyz": [0.0055, 0.0, 0.0]
+      },
+      "parent": "/ee_arm_link",
+      "type": "continuous"
+    },
+    {
+      "axis": [1.0, 0.0, 0.0],
+      "child": "/gripper_bar_link",
+      "name": "gripper_bar",
+      "origin": {
+        "rpy": [0.0, 0.0, 0.0],
+        "xyz": [0.0, 0.0, 0.0]
+      },
+      "parent": "/ee_arm_link",
+      "type": "fixed"
+    },
+    {
+      "axis": [1.0, 0.0, 0.0],
+      "child": "/fingers_link",
+      "name": "ee_bar",
+      "origin": {
+        "rpy": [0.0, 0.0, 0.0],
+        "xyz": [0.023, 0.0, 0.0]
+      },
+      "parent": "/gripper_bar_link",
+      "type": "fixed"
+    },
+    {
+      "axis": [0.0, 1.0, 0.0],
+      "child": "/left_finger_link",
+      "limits": {
+        "effort": 10.0,
+        "lower": 0.015,
+        "upper": 0.037,
+        "velocity": 1.0
+      },
+      "mimic": {
+        "multiplier": 0.014,
+        "name": "gripper",
+        "offset": 0.014
+      },
+      "name": "left_finger",
+      "origin": {
+        "rpy": [0.0, 0.0, 0.0],
+        "xyz": [0.0, 0.0, 0.0]
+      },
+      "parent": "/fingers_link",
+      "type": "prismatic"
+    },
+    {
+      "axis": [0.0, 1.0, 0.0],
+      "child": "/right_finger_link",
+      "limits": {
+        "effort": 10.0,
+        "lower": -0.037,
+        "upper": -0.015,
+        "velocity": 1.0
+      },
+      "mimic": {
+        "multiplier": -1.0,
+        "name": "left_finger",
+        "offset": 0.0
+      },
+      "name": "right_finger",
+      "origin": {
+        "rpy": [0.0, 0.0, 0.0],
+        "xyz": [0.0, 0.0, 0.0]
+      },
+      "parent": "/fingers_link",
+      "type": "prismatic"
+    },
+    {
+      "axis": [1.0, 0.0, 0.0],
+      "child": "/ee_gripper_link",
+      "name": "ee_gripper",
+      "origin": {
+        "rpy": [0.0, 0.0, 0.0],
+        "xyz": [0.027575, 0.0, 0.0]
+      },
+      "parent": "/fingers_link",
+      "type": "fixed"
+    }
+  ],
+  "links": [
+    {
+      "collisions": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-1-Base.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, -1.5707963267948966],
+            "xyz": [0.0, 0.0, 0.0]
+          }
+        }
+      ],
+      "inertial": {
+        "inertia": {
+          "ixx": 0.003353,
+          "ixy": -0.0001246,
+          "ixz": 1.106e-5,
+          "iyy": 0.001357,
+          "iyz": 0.0002103,
+          "izz": 0.004111
+        },
+        "mass": 0.766135,
+        "origin": {
+          "rpy": [0.0, 0.0, 1.5707963267948966],
+          "xyz": [-0.0354389, -0.00335861, 0.0253408]
+        }
+      },
+      "name": "/base_link",
+      "visuals": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-1-Base.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [0.0, 0.0, 0.0]
+          }
+        }
+      ]
+    },
+    {
+      "collisions": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-2-Shoulder.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, -1.5707963267948966],
+            "xyz": [0.0, 0.0, 0.0015]
+          }
+        }
+      ],
+      "inertial": {
+        "inertia": {
+          "ixx": 0.0002663,
+          "ixy": 9e-10,
+          "ixz": 5.11e-8,
+          "iyy": 0.0004428,
+          "iyz": 4.416e-7,
+          "izz": 0.0004711
+        },
+        "mass": 0.257774,
+        "origin": {
+          "rpy": [0.0, 0.0, 1.5707963267948966],
+          "xyz": [-8.53644e-5, 1.7369e-5, 0.0132005]
+        }
+      },
+      "name": "/shoulder_link",
+      "visuals": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-2-Shoulder.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, -1.5707963267948966],
+            "xyz": [0.0, 0.0, 0.0015]
+          }
+        }
+      ]
+    },
+    {
+      "collisions": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-3-UA.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [0.0, 0.0, 0.0]
+          }
+        }
+      ],
+      "inertial": {
+        "inertia": {
+          "ixx": 0.00171,
+          "ixy": -9.773e-7,
+          "ixz": 2.0936e-6,
+          "iyy": 0.001631,
+          "iyz": 0.0002132,
+          "izz": 0.0001478
+        },
+        "mass": 0.297782,
+        "origin": {
+          "rpy": [0.0, 0.0, 1.5707963267948966],
+          "xyz": [0.0119513, -0.000116923, 0.13943]
+        }
+      },
+      "name": "/upper_arm_link",
+      "visuals": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-3-UA.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [0.0, 0.0, 0.0]
+          }
+        }
+      ]
+    },
+    {
+      "collisions": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-4-Forearm.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [0.0, 0.0, 0.0]
+          }
+        }
+      ],
+      "inertial": {
+        "inertia": {
+          "ixx": 0.001055,
+          "ixy": -1.8286e-6,
+          "ixz": 0.0,
+          "iyy": 6.421e-5,
+          "iyz": 0.0,
+          "izz": 0.001076
+        },
+        "mass": 0.258863,
+        "origin": {
+          "rpy": [0.0, 0.0, 1.5707963267948966],
+          "xyz": [0.114745, -9.38376e-5, 0.0]
+        }
+      },
+      "name": "/forearm_link",
+      "visuals": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-4-Forearm.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [0.0, 0.0, 0.0]
+          }
+        }
+      ]
+    },
+    {
+      "collisions": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-5-Wrist.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 3.141592653589793, -1.5707963267948966],
+            "xyz": [0.0, 0.0, 0.0]
+          }
+        }
+      ],
+      "inertial": {
+        "inertia": {
+          "ixx": 3.082e-5,
+          "ixy": 1.91e-8,
+          "ixz": 2.3e-9,
+          "iyy": 2.822e-5,
+          "iyz": 2.5481e-6,
+          "izz": 3.152e-5
+        },
+        "mass": 0.084957,
+        "origin": {
+          "rpy": [0.0, 3.141592653589793, -1.5707963267948966],
+          "xyz": [0.04236, 1.0411e-5, -0.010577]
+        }
+      },
+      "name": "/wrist_link",
+      "visuals": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-5-Wrist.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 3.141592653589793, -1.5707963267948966],
+            "xyz": [0.0, 0.0, 0.0]
+          }
+        }
+      ]
+    },
+    {
+      "collisions": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-6-Gripper.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [-0.02, 0.0, 0.0]
+          }
+        }
+      ],
+      "inertial": {
+        "inertia": {
+          "ixx": 2.537e-5,
+          "ixy": 0.0,
+          "ixz": 0.0,
+          "iyy": 1.836e-5,
+          "iyz": 4.34e-7,
+          "izz": 1.674e-5
+        },
+        "mass": 0.072885,
+        "origin": {
+          "rpy": [0.0, 0.0, 1.5707963267948966],
+          "xyz": [0.02163, 0.0, 0.01141]
+        }
+      },
+      "name": "/gripper_link",
+      "visuals": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-6-Gripper.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [-0.02, 0.0, 0.0]
+          }
+        }
+      ]
+    },
+    {
+      "inertial": {
+        "inertia": {
+          "ixx": 0.001,
+          "ixy": 0.0,
+          "ixz": 0.0,
+          "iyy": 0.001,
+          "iyz": 0.0,
+          "izz": 0.001
+        },
+        "mass": 0.001,
+        "origin": {
+          "rpy": [0, 0, 0],
+          "xyz": [0, 0, 0]
+        }
+      },
+      "name": "/ee_arm_link"
+    },
+    {
+      "collisions": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-7-Gripper-Prop.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [-0.0685, 0.0, 0.0]
+          }
+        }
+      ],
+      "inertial": {
+        "inertia": {
+          "ixx": 5.923e-7,
+          "ixy": 0.0,
+          "ixz": 3.195e-7,
+          "iyy": 1.1156e-6,
+          "iyz": -4e-10,
+          "izz": 5.743e-7
+        },
+        "mass": 0.00434,
+        "origin": {
+          "rpy": [0.0, 0.0, 1.5707963267948966],
+          "xyz": [0.000846, -1.933e-6, 4.2e-5]
+        }
+      },
+      "name": "/gripper_prop_link",
+      "visuals": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-7-Gripper-Prop.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [-0.0685, 0.0, 0.0]
+          }
+        }
+      ]
+    },
+    {
+      "collisions": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-8-Gripper-Bar.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [-0.063, 0.0, 0.0]
+          }
+        }
+      ],
+      "inertial": {
+        "inertia": {
+          "ixx": 7.4125e-6,
+          "ixy": -8e-10,
+          "ixz": -6e-10,
+          "iyy": 2.843e-5,
+          "iyz": -1.3889e-6,
+          "izz": 2.86e-5
+        },
+        "mass": 0.034199,
+        "origin": {
+          "rpy": [0.0, 0.0, 1.5707963267948966],
+          "xyz": [0.009687, 5.66e-7, 0.004962]
+        }
+      },
+      "name": "/gripper_bar_link",
+      "visuals": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-8-Gripper-Bar.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 0.0, 1.5707963267948966],
+            "xyz": [-0.063, 0.0, 0.0]
+          }
+        }
+      ]
+    },
+    {
+      "inertial": {
+        "inertia": {
+          "ixx": 0.001,
+          "ixy": 0.0,
+          "ixz": 0.0,
+          "iyy": 0.001,
+          "iyz": 0.0,
+          "izz": 0.001
+        },
+        "mass": 0.001,
+        "origin": {
+          "rpy": [0, 0, 0],
+          "xyz": [0, 0, 0]
+        }
+      },
+      "name": "/fingers_link"
+    },
+    {
+      "collisions": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-9-Finger.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [3.141592653589793, 3.141592653589793, 0.0],
+            "xyz": [0.0, 0.005, 0.0]
+          }
+        }
+      ],
+      "inertial": {
+        "inertia": {
+          "ixx": 4.731e-6,
+          "ixy": -4.56e-7,
+          "ixz": 0.0,
+          "iyy": 1.5506e-6,
+          "iyz": 0.0,
+          "izz": 3.7467e-6
+        },
+        "mass": 0.016246,
+        "origin": {
+          "rpy": [3.141592653589793, 3.141592653589793, 1.5707963267948966],
+          "xyz": [0.013816, 0.0, 0.0]
+        }
+      },
+      "name": "/left_finger_link",
+      "visuals": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-9-Finger.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [3.141592653589793, 3.141592653589793, 0.0],
+            "xyz": [0.0, 0.005, 0.0]
+          }
+        }
+      ]
+    },
+    {
+      "collisions": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-9-Finger.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 3.141592653589793, 0.0],
+            "xyz": [0.0, -0.005, 0.0]
+          }
+        }
+      ],
+      "inertial": {
+        "inertia": {
+          "ixx": 4.731e-6,
+          "ixy": 4.56e-7,
+          "ixz": 0.0,
+          "iyy": 1.5506e-6,
+          "iyz": 0.0,
+          "izz": 3.7467e-6
+        },
+        "mass": 0.016246,
+        "origin": {
+          "rpy": [0.0, 3.141592653589793, 1.5707963267948966],
+          "xyz": [0.013816, 0.0, 0.0]
+        }
+      },
+      "name": "/right_finger_link",
+      "visuals": [
+        {
+          "geometry": {
+            "filename": "rx200/RXA-200-M-9-Finger.stl",
+            "scale": [0.001, 0.001, 0.001],
+            "type": "mesh"
+          },
+          "material": {
+            "name": "interbotix_black"
+          },
+          "origin": {
+            "rpy": [0.0, 3.141592653589793, 0.0],
+            "xyz": [0.0, -0.005, 0.0]
+          }
+        }
+      ]
+    },
+    {
+      "inertial": {
+        "inertia": {
+          "ixx": 0.001,
+          "ixy": 0.0,
+          "ixz": 0.0,
+          "iyy": 0.001,
+          "iyz": 0.0,
+          "izz": 0.001
+        },
+        "mass": 0.001,
+        "origin": {
+          "rpy": [0, 0, 0],
+          "xyz": [0, 0, 0]
+        }
+      },
+      "name": "/ee_gripper_link"
+    }
+  ],
+  "materials": [
+    {
+      "filename": "rx200/interbotix_black.png",
+      "name": "interbotix_black"
+    }
+  ],
+  "name": "ReactorX-200"
+}

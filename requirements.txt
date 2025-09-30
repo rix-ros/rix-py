@@ -2,3 +2,4 @@ numpy
 scipy
 pyinstaller
 jsonschema
+urdf_parser_py

@@ -47,6 +47,22 @@ cp -r dist/rixtopic "$HOME/.rix/"
 mkdir -p "$HOME/.rix/bin/"
 ln -sf "$HOME/.rix/rixtopic/rixtopic" "$HOME/.rix/bin/rixtopic"
 
+# Create the executable
+python3 -m PyInstaller --clean --strip --optimize 2 --onedir --noupx --name jrdf jrdf/src/main.py
+
+# Check if the executable was created
+if [ ! -f "dist/jrdf/jrdf" ]; then
+    echo "Error: jrdf executable not found in dist/jrdf/"
+    exit 1
+fi
+
+# Copy the required files
+cp -r dist/jrdf "$HOME/.rix/"
+
+# Create symbolic link to jrdf
+mkdir -p "$HOME/.rix/bin/"
+ln -sf "$HOME/.rix/jrdf/jrdf" "$HOME/.rix/bin/jrdf"
+
 # Clean up
 rm -rf build/ dist/
 
