@@ -1,32 +1,26 @@
-# URDF to JSON Converter (`jrdf`)
+# JRDF: JSON Robot Description Format CLI
 
-This tool converts [URDF](http://wiki.ros.org/urdf) (Unified Robot Description Format) files into a JSON format for enhanced readability and provides utilities for working with robot models.
-
----
+JRDF is a command-line tool for managing robot models in the JSON Robot Description Format (JRDF). It supports conversion from URDF, validation, visualization, and asset management for robot models.
 
 ## Features
 
-- Parses URDF files using [`urdf_parser_py`](https://github.com/ros/urdf_parser_py)
-- Converts robot links, joints, visuals, collisions, inertial properties, and materials to JSON
-- Supports mesh, box, cylinder, and sphere geometries
-- Handles multiple visuals and collisions per link
-- Looks up mesh files in `~/.rix/models/`
-- Outputs a `.json` file with the same name as the input `.urdf`
-- Installs mesh files to the local model directory
-- Validates JRDF JSON files
-- Visualizes robot models from JRDF JSON files
+- **Convert URDF to JRDF:** Easily convert existing URDF files to JRDF format.
+- **List Models:** Show all available JRDF models.
+- **Validate Models:** Check the structure of JRDF JSON files.
+- **Visualize Models:** Render robot models using Open3D.
 
----
+## Installation
 
-## Requirements
+Ensure you have Python 3.12 and the required dependencies installed:
 
-- Python 3.12
+- `open3d`
 - `urdf_parser_py`
-- `open3d` (for visualization)
-
----
+- `pycollada`
+- RIX-PY core libraries (installed via the main RIX-PY install script)
 
 ## Usage
+
+Run the CLI with:
 
 ```sh
 jrdf <function> [arguments]
@@ -34,55 +28,47 @@ jrdf <function> [arguments]
 
 ### Functions
 
-- `convert <input.urdf> [output.json]`  
-  Convert a URDF file to JSON.
+- `create <name> <json | urdf> [asset directory]`  
+  Create a JRDF model from a JSON or URDF file. Optionally copy assets.
 
-- `mesh <name> <mesh file/dir>`  
-  Install mesh files to `~/.rix/models/<name>/`.
+- `list`  
+  List all JRDF models in `~/.rix/jrdf/models`.
 
 - `validate <input.json>`  
   Validate a JRDF JSON file.
 
-- `visualize <input.json>`  
-  Visualize a JRDF JSON file.
+- `visualize <name>`  
+  Visualize a JRDF model using Open3D.
 
----
+### Examples
 
-## Notes
-
-- Mesh files referenced in the URDF should be placed in `~/.rix/models/`.
-- Warnings are printed if mesh files cannot be found.
-- Visualization requires `open3d` to be installed.
-
----
-
-## Examples
-
-Convert URDF to JSON:
+**Convert a URDF to JRDF:**
 ```sh
-jrdf convert my_robot.urdf
-# Output: my_robot.json
+jrdf create my_robot my_robot.urdf ./assets
 ```
 
-Install mesh files:
+**List models:**
 ```sh
-jrdf mesh my_robot meshes/
+jrdf list
 ```
 
-Validate a JRDF file:
+**Validate a model:**
 ```sh
-jrdf validate my_robot.json
+jrdf validate ~/.rix/jrdf/models/my_robot/model.json
 ```
 
-Visualize a robot model:
+**Visualize a model:**
 ```sh
-jrdf visualize my_robot.json
+jrdf visualize my_robot
 ```
 
----
+## File Structure
+
+- Models are stored in: `~/.rix/jrdf/models/<name>/model.json`
+- Assets are stored in: `~/.rix/jrdf/models/<name>/assets/`
 
 ## License
 
-See [LICENSE.md](LICENSE.md) for details.
+See [LICENSE.md](../../LICENSE.md) for details.
 
 ---
