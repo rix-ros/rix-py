@@ -1,4 +1,4 @@
-# rixtopic
+# `rixtopic`: RIX Topic Introspection CLI
 
 `rixtopic` is a command-line utility for interacting with RIX-PY topics in a running RIX system. It allows you to list active topics, echo messages, measure message rates, and monitor bandwidth for any topic.
 
@@ -42,4 +42,4 @@ rixtopic [-h] function [arg]
 
 ## License
 
-See [LICENSE.md](LICENSE.md) for details.
+See [LICENSE.md](../LICENSE.md) for details.
