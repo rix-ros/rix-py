@@ -1,4 +1,4 @@
-# JRDF: JSON Robot Description Format CLI
+# `jrdf`: JSON Robot Description Format CLI
 
 JRDF is a command-line tool for managing robot models in the JSON Robot Description Format (JRDF). It supports conversion from URDF, validation, visualization, and asset management for robot models.
 
