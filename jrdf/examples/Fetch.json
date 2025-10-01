@@ -293,7 +293,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/base_link.obj",
+            "filename": "base_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -322,7 +322,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/base_link.obj",
+            "filename": "base_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -341,7 +341,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/torso_lift_link.obj",
+            "filename": "torso_lift_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -370,7 +370,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/torso_lift_link.obj",
+            "filename": "torso_lift_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -389,7 +389,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/shoulder_pan_link.obj",
+            "filename": "shoulder_pan_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -418,7 +418,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/shoulder_pan_link.obj",
+            "filename": "shoulder_pan_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -437,7 +437,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/shoulder_lift_link.obj",
+            "filename": "shoulder_lift_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -466,7 +466,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/shoulder_lift_link.obj",
+            "filename": "shoulder_lift_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -485,7 +485,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/upperarm_roll_link.obj",
+            "filename": "upperarm_roll_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -514,7 +514,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/upperarm_roll_link.obj",
+            "filename": "upperarm_roll_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -533,7 +533,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/elbow_flex_link.obj",
+            "filename": "elbow_flex_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -562,7 +562,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/elbow_flex_link.obj",
+            "filename": "elbow_flex_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -581,7 +581,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/forearm_roll_link.obj",
+            "filename": "forearm_roll_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -610,7 +610,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/forearm_roll_link.obj",
+            "filename": "forearm_roll_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -629,7 +629,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/wrist_flex_link.obj",
+            "filename": "wrist_flex_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -658,7 +658,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/wrist_flex_link.obj",
+            "filename": "wrist_flex_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -677,7 +677,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/wrist_roll_link.obj",
+            "filename": "wrist_roll_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -706,7 +706,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/wrist_roll_link.obj",
+            "filename": "wrist_roll_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -725,7 +725,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/gripper_link.obj",
+            "filename": "gripper_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -754,7 +754,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/gripper_link.obj",
+            "filename": "gripper_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -769,7 +769,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/r_gripper_finger_link.STL",
+            "filename": "r_gripper_finger_link.STL",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -798,7 +798,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/r_gripper_finger_link.STL",
+            "filename": "r_gripper_finger_link.STL",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -817,7 +817,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/l_gripper_finger_link.STL",
+            "filename": "l_gripper_finger_link.STL",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -846,7 +846,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/l_gripper_finger_link.STL",
+            "filename": "l_gripper_finger_link.STL",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -865,7 +865,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/bellows_link.STL",
+            "filename": "bellows_link.STL",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -894,7 +894,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/bellows_link.STL",
+            "filename": "bellows_link.STL",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -913,7 +913,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/bellows_link.STL",
+            "filename": "bellows_link.STL",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -942,7 +942,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/bellows_link.STL",
+            "filename": "bellows_link.STL",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -961,7 +961,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/estop_link.obj",
+            "filename": "estop_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -990,7 +990,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/estop_link.obj",
+            "filename": "estop_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -1009,7 +1009,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/laser_link.STL",
+            "filename": "laser_link.STL",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -1038,7 +1038,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/laser_link.STL",
+            "filename": "laser_link.STL",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -1059,7 +1059,7 @@
       "collisions": [
         {
           "geometry": {
-            "filename": "fetch/torso_fixed_link.obj",
+            "filename": "torso_fixed_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },
@@ -1088,7 +1088,7 @@
       "visuals": [
         {
           "geometry": {
-            "filename": "fetch/torso_fixed_link.obj",
+            "filename": "torso_fixed_link.dae",
             "scale": [1, 1, 1],
             "type": "mesh"
           },

@@ -32,7 +32,13 @@ source $HOME/.rix/venv/bin/activate
 pip install -r requirements.txt
 
 # Create the executable
-python3 -m PyInstaller --clean --strip --optimize 2 --onedir --noupx --name rixtopic rixtopic/src/main.py
+python3 -m PyInstaller \
+    --onedir \
+    --strip \
+    --optimize 2 \
+    --noupx \
+    --name rixtopic \
+    rixtopic/src/main.py
 
 # Check if the executable was created
 if [ ! -f "dist/rixtopic/rixtopic" ]; then
@@ -48,7 +54,15 @@ mkdir -p "$HOME/.rix/bin/"
 ln -sf "$HOME/.rix/rixtopic/rixtopic" "$HOME/.rix/bin/rixtopic"
 
 # Create the executable
-python3 -m PyInstaller --clean --strip --optimize 2 --onedir --noupx --name jrdf jrdf/src/main.py
+python3 -m PyInstaller \
+  --onedir \
+  --strip \
+  --optimize 2 \
+  --noupx \
+  --hidden-import open3d \
+  --hidden-import collada \
+  --add-data "$(python3 -c 'import collada,os; print(os.path.join(os.path.dirname(collada.__file__), "resources") + ":collada/resources")')" \
+  --name jrdf jrdf/src/main.py
 
 # Check if the executable was created
 if [ ! -f "dist/jrdf/jrdf" ]; then

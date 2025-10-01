@@ -18,11 +18,10 @@ HOME = os.path.expanduser("~")
 USAGE = """jrdf [-h] function [arg]
 
 Functions:
-  convert <input.urdf> [output.json] - Convert a URDF file to JSON
-  mesh <name> <mesh file/dir>        - Install mesh files to ~/.rix/models/<name>/
-  validate <input.json>              - Validate a JRDF JSON file
-  visualize <input.json>             - Visualize a JRDF JSON file
-  info <input.json>                  - Print information about a JRDF JSON file
+  create <name> <json | urdf> [asset directory]    - Create a JRDF model
+  list                                             - List all JRDF models
+  validate <input.json>                            - Validate a JRDF JSON file
+  visualize <name>                                 - Visualize a JRDF model
 """
 
 
@@ -36,14 +35,16 @@ def find_file(filename: str, path: str) -> str | None:
     return None
 
 
-def find_model_file(filename: str) -> str | None:
-    path = find_file(os.path.basename(filename), HOME + "/.rix/models/")
+def find_model_file(name: str, filename: str) -> str | None:
+    path = find_file(
+        os.path.basename(filename), HOME + "/.rix/jrdf/models/" + name + "/assets"
+    )
     if path is None:
         return None
-    return path.split(HOME + "/.rix/models/")[1]
+    return path.split(HOME + "/.rix/jrdf/models/" + name + "/assets/")[1]
 
 
-def convert(urdf_file: str, output_file: str | None) -> None:
+def convert_urdf_to_jrdf(name: str, urdf_file: str) -> dict:
     # Code here
     jrdf: dict = {
         "name": "",
@@ -80,30 +81,38 @@ def convert(urdf_file: str, output_file: str | None) -> None:
                 geom_type = type(visual.geometry).__name__.lower()
 
                 if geom_type == "mesh":
-                    filename = find_model_file(visual.geometry.filename)
+                    filename = find_model_file(name, visual.geometry.filename)
                     if filename is None:
                         print(
                             'Warning! Unable to find model "'
                             + visual.geometry.filename
-                            + '". Have you moved the meshes to ~/.rix/models yet?'
+                            + '".'
                         )
                         filename = ""
 
                     geometry = {
                         "type": geom_type,
                         "filename": filename,
-                        "scale": list(visual.geometry.scale or [1, 1, 1]),
+                        "scale": (
+                            visual.geometry.scale
+                            if visual.geometry.scale
+                            else [1, 1, 1]
+                        ),
                     }
                 elif geom_type == "box":
                     geometry = {"type": geom_type, "size": list(visual.geometry.size)}
                 elif geom_type == "cylinder":
-                    geometry = {"type": geom_type, "size": list(visual.geometry.size)}
+                    geometry = {
+                        "type": geom_type,
+                        "radius": visual.geometry.radius,
+                        "length": visual.geometry.length,
+                    }
                 elif geom_type == "sphere":
-                    geometry = {"type": geom_type, "size": list(visual.geometry.size)}
+                    geometry = {"type": geom_type, "radius": visual.geometry.radius}
 
                 origin = {
-                    "xyz": list(visual.origin.xyz),
-                    "rpy": list(visual.origin.rpy),
+                    "xyz": visual.origin.xyz if visual.origin else [0, 0, 0],
+                    "rpy": visual.origin.rpy if visual.origin else [0, 0, 0],
                 }
 
                 material = {}
@@ -112,7 +121,7 @@ def convert(urdf_file: str, output_file: str | None) -> None:
                     if visual.material.texture:
                         material["filename"] = visual.material.texture.filename
                     if visual.material.color:
-                        material["color"] = list(visual.material.color)
+                        material["color"] = visual.material.color.rgba
 
                 visual_obj = {
                     "geometry": geometry,
@@ -130,39 +139,43 @@ def convert(urdf_file: str, output_file: str | None) -> None:
                 geom_type = type(collision.geometry).__name__.lower()
 
                 if geom_type == "mesh":
-                    filename = find_model_file(visual.geometry.filename)
+                    filename = find_model_file(name, visual.geometry.filename)
                     if filename is None:
                         print(
                             'Warning! Unable to find model "'
                             + visual.geometry.filename
-                            + '". Have you moved the meshes to ~/.rix/models yet?'
+                            + '".'
                         )
                         filename = ""
 
                     geometry = {
                         "type": geom_type,
                         "filename": filename,
-                        "scale": list(visual.geometry.scale or [1, 1, 1]),
+                        "scale": (
+                            visual.geometry.scale
+                            if visual.geometry.scale
+                            else [1, 1, 1]
+                        ),
                     }
                 elif geom_type == "box":
                     geometry = {
                         "type": geom_type,
-                        "size": list(collision.geometry.size),
+                        "size": collision.geometry.size,
                     }
                 elif geom_type == "cylinder":
                     geometry = {
                         "type": geom_type,
-                        "size": list(collision.geometry.size),
+                        "radius": collision.geometry.radius,
+                        "length": collision.geometry.length,
                     }
                 elif geom_type == "sphere":
                     geometry = {
                         "type": geom_type,
-                        "size": list(collision.geometry.size),
                     }
 
                 origin = {
-                    "xyz": list(collision.origin.xyz),
-                    "rpy": list(collision.origin.rpy),
+                    "xyz": collision.origin.xyz,
+                    "rpy": collision.origin.rpy,
                 }
 
                 collision_obj = {
@@ -180,12 +193,12 @@ def convert(urdf_file: str, output_file: str | None) -> None:
             link_dict["inertial"] = {
                 "origin": {
                     "xyz": (
-                        list(inertial.origin.xyz)
+                        inertial.origin.xyz
                         if inertial.origin is not None
                         else [0, 0, 0]
                     ),
                     "rpy": (
-                        list(inertial.origin.rpy)
+                        inertial.origin.rpy
                         if inertial.origin is not None
                         else [0, 0, 0]
                     ),
@@ -211,10 +224,10 @@ def convert(urdf_file: str, output_file: str | None) -> None:
             "parent": joint.parent,
             "child": joint.child,
             "origin": {
-                "xyz": list(joint.origin.xyz) if joint.origin else [0, 0, 0],
-                "rpy": list(joint.origin.rpy) if joint.origin else [0, 0, 0],
+                "xyz": joint.origin.xyz if joint.origin else [0, 0, 0],
+                "rpy": joint.origin.rpy if joint.origin else [0, 0, 0],
             },
-            "axis": list(joint.axis),
+            "axis": joint.axis if joint.axis else [1, 0, 0],
         }
         if joint.limit is not None:
             joint_dict["limits"] = {
@@ -244,35 +257,61 @@ def convert(urdf_file: str, output_file: str | None) -> None:
 
         jrdf["joints"].append(joint_dict)
 
-    if output_file is not None:
-        output_filename = output_file
-    else:
-        output_filename = urdf_file.replace(".urdf", ".json")
-    with open(output_filename, "w") as out:
-        json.dump(jrdf, out, indent=2)
+    return jrdf
 
 
-def mesh(name: str, mesh_path: str) -> None:
-    dest_dir = os.path.join(HOME, ".rix", "models", name)
-    os.makedirs(dest_dir, exist_ok=True)
+def create(name: str, input_file: str, asset_dir: str | None) -> None:
+    if not os.path.isfile(input_file):
+        print(f"Error! Input file '{input_file}' does not exist.")
+        return
 
-    if os.path.isdir(mesh_path):
-        for entry in os.listdir(mesh_path):
-            full_path = os.path.join(mesh_path, entry)
-            if os.path.isfile(full_path):
-                dest_path = os.path.join(dest_dir, entry)
-                with open(full_path, "rb") as src_file:
-                    with open(dest_path, "wb") as dest_file:
-                        dest_file.write(src_file.read())
-        print(f"Installed all files from directory '{mesh_path}' to '{dest_dir}'")
-    elif os.path.isfile(mesh_path):
-        dest_path = os.path.join(dest_dir, os.path.basename(mesh_path))
-        with open(mesh_path, "rb") as src_file:
-            with open(dest_path, "wb") as dest_file:
-                dest_file.write(src_file.read())
-        print(f"Installed file '{mesh_path}' to '{dest_path}'")
-    else:
-        print(f"Error: '{mesh_path}' is neither a file nor a directory.")
+    # If provided, copy asset files to ~/.rix/jrdf/models/<name>/assets/
+    if asset_dir:
+        if not os.path.isdir(asset_dir):
+            print(f"Error! Asset directory '{asset_dir}' does not exist.")
+            return
+        os.system(f"mkdir -p {HOME}/.rix/jrdf/models/{name}/assets")
+        os.system(f"cp -r {asset_dir} {HOME}/.rix/jrdf/models/{name}/assets")
+
+    # Determine if input is JSON or URDF
+    if not (
+        input_file.lower().endswith(".json") or input_file.lower().endswith(".urdf")
+    ):
+        print("Error! Input file must be a .json or .urdf file.")
+        return
+
+    jrdf: dict = {}
+    if input_file.lower().endswith(".json"):
+        with open(input_file, "r") as f:
+            jrdf = json.load(f)
+    if input_file.lower().endswith(".urdf"):
+        jrdf = convert_urdf_to_jrdf(name, input_file)
+
+    # Copy json to ~/.rix/jrdf/models/<name>/model.json
+    output_file = os.path.join(HOME, ".rix", "jrdf", "models", name, "model.json")
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    with open(output_file, "w") as f:
+        json.dump(jrdf, f, indent=4)
+
+
+def list() -> None:
+    models_dir = os.path.join(HOME, ".rix", "jrdf", "models")
+    if not os.path.isdir(models_dir):
+        print("No JRDF models found.")
+        return
+
+    model_names = [
+        name
+        for name in os.listdir(models_dir)
+        if os.path.isdir(os.path.join(models_dir, name))
+    ]
+
+    if not model_names:
+        print("No JRDF models found.")
+        return
+
+    for name in model_names:
+        print(name)
 
 
 def validate(jrdf_file: str) -> None:
@@ -298,44 +337,39 @@ def validate(jrdf_file: str) -> None:
         print(f"Error validating JRDF file '{jrdf_file}': {e}")
 
 
-def visualize(jrdf_file: str) -> None:
+def visualize(name: str) -> None:
     try:
-        print(f"Visualizing JRDF file '{jrdf_file}'...")
-        robot_model = RobotModel(jrdf_file)
+        print(f"Visualizing JRDF model '{name}'...")
         vis = o3d.visualization.Visualizer()
         vis.create_window(window_name="JRDF Visualizer", width=800, height=600)
-        o3d_robot = Open3DRobotModel(robot_model, vis)
+        o3d_robot = Open3DRobotModel(name, vis)
 
         vis.run()
         vis.destroy_window()
 
     except Exception as e:
-        print(f"Error visualizing JRDF file '{jrdf_file}': {e}")
+        print(f"Error visualizing JRDF model '{name}': {e}")
 
 
 def main(args: argparse.Namespace) -> None:
     function = args.function
 
-    if function == "convert":
-        urdf_file = args.arg
-        if not urdf_file:
-            print("Error! 'convert' requires an input URDF file as an argument.")
+    if function == "create":
+        if len(args.args) < 2:
+            print("Error! 'create' requires at least 2 arguments: <name> <json | urdf>")
             return
-        output_file = None
-        if len(args.extra) > 0:
-            output_file = args.extra[0]
-        convert(urdf_file, output_file)
+        name = args.args[0]
+        input_file = args.args[1]
+        if not input_file:
+            print("Error! 'create' requires an input JSON or URDF file as an argument.")
+            return
+
+        asset_dir = args.args[2] if len(args.args) > 2 else None
+        create(name, input_file, asset_dir)
         return
 
-    if function == "mesh":
-        if not args.arg or len(args.extra) == 0:
-            print(
-                "Error! 'mesh' requires a name and a mesh file or directory as arguments."
-            )
-            return
-        name = args.arg
-        mesh_path = args.extra[0]
-        mesh(name, mesh_path)
+    if function == "list":
+        list()
         return
 
     if function == "validate":
@@ -347,11 +381,11 @@ def main(args: argparse.Namespace) -> None:
         return
 
     if function == "visualize":
-        jrdf_file = args.arg
-        if not jrdf_file:
+        name = args.args[0] if len(args.args) > 0 else None
+        if not name:
             print("Error! 'visualize' requires an input JRDF file as an argument.")
             return
-        visualize(jrdf_file)
+        visualize(name)
         return
 
     print("Error! Unknown function:", function)
@@ -362,9 +396,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="jrdf CLI", usage=USAGE)
     parser.add_argument("-v", "--version", action="version", version="jrdf 1.0")
     parser.add_argument("function", type=str, help="Function to call (convert, mesh)")
-    parser.add_argument(
-        "arg", type=str, nargs="?", help="Primary argument for the function"
-    )
-    parser.add_argument("extra", nargs="*", help="Extra arguments for the function")
+    parser.add_argument("args", type=str, nargs="*", help="Arguments for the function")
     args = parser.parse_args()
     main(args)
