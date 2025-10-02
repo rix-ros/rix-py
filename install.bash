@@ -59,6 +59,7 @@ python3 -m PyInstaller \
   --strip \
   --optimize 2 \
   --noupx \
+  --hidden-import jsonschema \
   --hidden-import open3d \
   --hidden-import collada \
   --add-data "$(python3 -c 'import collada,os; print(os.path.join(os.path.dirname(collada.__file__), "resources") + ":collada/resources")')" \

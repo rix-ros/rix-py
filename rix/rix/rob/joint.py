@@ -2,20 +2,13 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 from rix.msg.sensor import JointState
 import enum
+from rix.rob.math_parser import (
+    parse_origin,
+    parse_vector3,
+    parse_number_or_expression,
+    parse_vector4,
+)
 
-def convert_json_origin(origin: dict) -> np.ndarray:
-    """Convert a JSON origin dictionary to a 4x4 transformation matrix."""
-    if origin is None:
-        return np.eye(4)
-
-    xyz = origin.get("xyz", [0.0, 0.0, 0.0])
-    rpy = origin.get("rpy", [0.0, 0.0, 0.0])
-    translation = np.array(xyz)
-    rotation = R.from_euler("xyz", rpy).as_matrix()
-    matrix = np.eye(4)
-    matrix[0:3, 0:3] = rotation
-    matrix[0:3, 3] = translation
-    return matrix
 
 class JointType(enum.Enum):
     UNKNOWN = ""
@@ -31,11 +24,13 @@ class JointDynamics:
         self.friction = friction
 
     @staticmethod
-    def from_json(data: dict) -> "JointDynamics":
+    def from_json(
+        data: dict[str, any] | None, constants: dict[str, float]
+    ) -> "JointDynamics":
         if data is None:
             return JointDynamics()
-        damping = data.get("damping", 0.0)
-        friction = data.get("friction", 0.0)
+        damping = parse_number_or_expression(data.get("damping", 0.0), constants)
+        friction = parse_number_or_expression(data.get("friction", 0.0), constants)
         return JointDynamics(damping, friction)
 
 
@@ -53,19 +48,25 @@ class JointLimits:
         self.velocity = velocity
 
     @staticmethod
-    def from_json(data: dict) -> "JointLimits":
+    def from_json(
+        data: dict[str, any] | None, constants: dict[str, float]
+    ) -> "JointLimits":
         if data is None:
             return JointLimits()
-        lower = data.get("lower", 0.0)
-        upper = data.get("upper", 0.0)
-        effort = data.get("effort", 0.0)
-        velocity = data.get("velocity", 0.0)
+        lower = parse_number_or_expression(data.get("lower", 0.0), constants)
+        upper = parse_number_or_expression(data.get("upper", 0.0), constants)
+        effort = parse_number_or_expression(data.get("effort", 0.0), constants)
+        velocity = parse_number_or_expression(data.get("velocity", 0.0), constants)
         return JointLimits(lower, upper, effort, velocity)
 
 
 class JointMimic:
     def __init__(
-        self, offset: float = 0.0, multiplier: float = 1.0, name: str = "", joint: "Joint | None" = None
+        self,
+        offset: float = 0.0,
+        multiplier: float = 1.0,
+        name: str = "",
+        joint: "Joint | None" = None,
     ):
         self.offset = offset
         self.multiplier = multiplier
@@ -73,37 +74,72 @@ class JointMimic:
         self.joint = joint
 
     @staticmethod
-    def from_json(data: dict) -> "JointMimic":
+    def from_json(
+        data: dict[str, any] | None, constants: dict[str, float]
+    ) -> "JointMimic":
         if data is None:
             return JointMimic()
-        offset = data.get("offset", 0.0)
-        multiplier = data.get("multiplier", 1.0)
+        offset = parse_number_or_expression(data.get("offset", 0.0), constants)
+        multiplier = parse_number_or_expression(data.get("multiplier", 1.0), constants)
         name = data.get("name", "")
         return JointMimic(offset, multiplier, name)
+
+
+class JointSafety:
+    def __init__(
+        self,
+        soft_lower_limit: float = 0.0,
+        soft_upper_limit: float = 0.0,
+        k_position: float = 0.0,
+        k_velocity: float = 0.0,
+    ):
+        self.soft_lower_limit = soft_lower_limit
+        self.soft_upper_limit = soft_upper_limit
+        self.k_position = k_position
+        self.k_velocity = k_velocity
+
+    @staticmethod
+    def from_json(
+        data: dict[str, any] | None, constants: dict[str, float]
+    ) -> "JointSafety":
+        if data is None:
+            return JointSafety()
+
+        soft_lower_limit = parse_number_or_expression(
+            data.get("soft_lower_limit", 0.0), constants
+        )
+        soft_upper_limit = parse_number_or_expression(
+            data.get("soft_upper_limit", 0.0), constants
+        )
+        k_position = parse_number_or_expression(data.get("k_position", 0.0), constants)
+        k_velocity = parse_number_or_expression(data.get("k_velocity", 0.0), constants)
+        return JointSafety(soft_lower_limit, soft_upper_limit, k_position, k_velocity)
 
 
 class Joint:
     def __init__(
         self,
+        name: str,
+        parent: str,
+        child: str,
         axis: np.ndarray,
         origin: np.ndarray,
         type: JointType,
         limits: JointLimits,
         dynamics: JointDynamics,
         mimic: JointMimic,
-        name: str,
-        parent: str,
-        child: str,
+        safety: JointSafety,
     ):
+        self.name = name
+        self.parent = parent
+        self.child = child
         self.axis = axis
         self.origin = origin
         self.type = type
         self.limits = limits
         self.dynamics = dynamics
         self.mimic = mimic
-        self.name = name
-        self.parent = parent
-        self.child = child
+        self.safety = safety
         self.position = 0.0
         self.velocity = 0.0
         self.effort = 0.0
@@ -146,20 +182,21 @@ class Joint:
         self.effort = state.effort
 
     @staticmethod
-    def from_json(data: dict) -> "Joint":
-        axis = np.array(data.get("axis", [1.0, 0.0, 0.0]))
-        origin = convert_json_origin(data.get("origin", {}))
+    def from_json(data: dict[str, any], constants: dict[str, float]) -> "Joint":
+        name = data.get("name", "")
+        parent = data.get("parent", "")
+        child = data.get("child", "")
+        axis = parse_vector3(data.get("axis", None), constants)
+        origin = parse_origin(data.get("origin", None), constants)
         type_str = data.get("type", "UNKNOWN").upper()
         try:
             type = JointType(type_str)
         except ValueError:
             type = JointType.UNKNOWN
-        limits = JointLimits.from_json(data.get("limits", None))
-        dynamics = JointDynamics.from_json(data.get("dynamics", None))
-        mimic = JointMimic.from_json(data.get("mimic", None))
-        name = data.get("name", "")
-        parent = data.get("parent", "")
-        child = data.get("child", "")
-        return Joint(axis, origin, type, limits, dynamics, mimic, name, parent, child)
-    
-
+        limits = JointLimits.from_json(data.get("limits", None), constants)
+        dynamics = JointDynamics.from_json(data.get("dynamics", None), constants)
+        mimic = JointMimic.from_json(data.get("mimic", None), constants)
+        safety = JointSafety.from_json(data.get("safety", None), constants)
+        return Joint(
+            name, parent, child, axis, origin, type, limits, dynamics, mimic, safety
+        )

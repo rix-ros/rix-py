@@ -1,12 +1,40 @@
 {
+  "materials": [
+    {
+      "name": "dark_blue",
+      "color": [0, 0.15294, 0.29804, 1]
+    },
+    {
+      "name": "maize",
+      "color": [1, 0.79608, 0.01961, 1]
+    },
+    {
+      "name": "white",
+      "color": [1, 1, 1, 1]
+    },
+    {
+      "name": "black",
+      "color": [0, 0, 0, 1]
+    }
+  ],
+  "constants": [
+    {
+      "name": "base_xy",
+      "value": 0.1
+    },
+    {
+      "name": "torso_xy",
+      "value": 0.075
+    }
+  ],
   "joints": [
     {
       "axis": [0, 0, 1],
       "child": "torso",
       "limits": {
         "effort": 1000,
-        "lower": -3.1415,
-        "upper": 3.1415,
+        "lower": "-M_PI",
+        "upper": "M_PI",
         "velocity": 100
       },
       "name": "waist",
@@ -18,8 +46,8 @@
       "child": "upper_arm",
       "limits": {
         "effort": 1000,
-        "lower": -1.5708,
-        "upper": 1.5708,
+        "lower": "-M_PI_2",
+        "upper": "M_PI_2",
         "velocity": 100
       },
       "name": "shoulder",
@@ -35,8 +63,8 @@
       "child": "forearm",
       "limits": {
         "effort": 1000,
-        "lower": -1.5708,
-        "upper": 1.5708,
+        "lower": "-M_PI_2",
+        "upper": "M_PI_2",
         "velocity": 100
       },
       "name": "elbow",
@@ -45,7 +73,7 @@
         "xyz": [0.2, 0, 0]
       },
       "parent": "upper_arm",
-      "type": "revolute"
+      "type": "prismatic"
     },
     {
       "axis": [1, 0, 0],
@@ -117,16 +145,15 @@
       "visuals": [
         {
           "geometry": {
-            "size": [0.1, 0.1, 0.05],
+            "size": ["base_xy", "base_xy", 0.05],
             "type": "box"
           },
           "material": {
-            "color": [0, 0.15294, 0.29804, 1],
-            "name": ""
+            "name": "dark_blue"
           },
           "origin": {
             "rpy": [0, 0, 0],
-            "xyz": [-0.05, -0.05, 0]
+            "xyz": ["-base_xy/2", "-base_xy/2", 0]
           }
         }
       ]
@@ -136,16 +163,15 @@
       "visuals": [
         {
           "geometry": {
-            "size": [0.075, 0.075, 0.4],
+            "size": ["torso_xy", "torso_xy", 0.4],
             "type": "box"
           },
           "material": {
-            "color": [1, 0.79608, 0.01961, 1],
-            "name": ""
+            "name": "maize"
           },
           "origin": {
             "rpy": [0, 0, 0],
-            "xyz": [-0.0375, -0.0375, 0.05]
+            "xyz": ["-torso_xy/2", "-torso_xy/2", 0.05]
           }
         }
       ]
@@ -159,8 +185,7 @@
             "type": "box"
           },
           "material": {
-            "color": [0, 0.15294, 0.29804, 1],
-            "name": ""
+            "name": "dark_blue"
           },
           "origin": {
             "rpy": [0, 0, 0],
@@ -178,8 +203,7 @@
             "type": "box"
           },
           "material": {
-            "color": [0, 0.15294, 0.29804, 1],
-            "name": ""
+            "name": "dark_blue"
           },
           "origin": {
             "rpy": [0, 0, 0],
@@ -198,11 +222,10 @@
             "type": "cylinder"
           },
           "material": {
-            "color": [1, 0.79608, 0.01961, 1],
-            "name": ""
+            "name": "maize"
           },
           "origin": {
-            "rpy": [0, 1.5708, 0],
+            "rpy": [0, "M_PI_2", 0],
             "xyz": [0, 0, 0.01]
           }
         }
@@ -217,8 +240,7 @@
             "type": "sphere"
           },
           "material": {
-            "color": [1, 1, 1, 1],
-            "name": ""
+            "name": "white"
           }
         }
       ]
@@ -232,8 +254,7 @@
             "type": "sphere"
           },
           "material": {
-            "color": [1, 1, 1, 1],
-            "name": ""
+            "name": "white"
           }
         }
       ]
@@ -247,8 +268,7 @@
             "type": "sphere"
           },
           "material": {
-            "color": [0, 0, 0, 1],
-            "name": ""
+            "name": "black"
           },
           "origin": {
             "rpy": [0, 0, 0],
@@ -266,8 +286,7 @@
             "type": "sphere"
           },
           "material": {
-            "color": [0, 0, 0, 1],
-            "name": ""
+            "name": "black"
           },
           "origin": {
             "rpy": [0, 0, 0],

@@ -5,10 +5,10 @@ import os
 rix_path = os.path.expanduser("~/.rix/python/rix")
 sys.path.append(rix_path)
 
-from rix.rob import RobotModel
 from open3d_util import Open3DRobotModel
 
 import json
+import jsonschema
 import argparse
 import open3d as o3d
 from urdf_parser_py.urdf import URDF
@@ -29,7 +29,9 @@ def find_file(filename: str, path: str) -> str | None:
     for entry in os.listdir(path):
         full_path = os.path.join(path, entry)
         if os.path.isdir(full_path):
-            return find_file(filename, full_path)
+            file = find_file(filename, full_path)
+            if file is not None:
+                return file
         elif full_path.endswith(filename):
             return full_path
     return None
@@ -63,7 +65,7 @@ def convert_urdf_to_jrdf(name: str, urdf_file: str) -> dict:
         for material in robot.materials:
             tmp_material = {"name": material.name}
             if material.color is not None:
-                tmp_material["color"] = material.color
+                tmp_material["color"] = material.color.rgba
             if material.texture is not None:
                 tmp_material["filename"] = material.texture.filename
             jrdf["materials"].append(tmp_material)
@@ -100,7 +102,7 @@ def convert_urdf_to_jrdf(name: str, urdf_file: str) -> dict:
                         ),
                     }
                 elif geom_type == "box":
-                    geometry = {"type": geom_type, "size": list(visual.geometry.size)}
+                    geometry = {"type": geom_type, "size": visual.geometry.size}
                 elif geom_type == "cylinder":
                     geometry = {
                         "type": geom_type,
@@ -171,6 +173,7 @@ def convert_urdf_to_jrdf(name: str, urdf_file: str) -> dict:
                 elif geom_type == "sphere":
                     geometry = {
                         "type": geom_type,
+                        "radius": collision.geometry.radius,
                     }
 
                 origin = {
@@ -319,21 +322,14 @@ def validate(jrdf_file: str) -> None:
         with open(jrdf_file, "r") as f:
             jrdf = json.load(f)
 
-        # TODO: Implement full JSON schema validation
-        if "name" not in jrdf or not isinstance(jrdf["name"], str):
-            print("Invalid JRDF: Missing or invalid 'name' field.")
-            return
+        schema = {}
+        schema_file = os.path.join(HOME, ".rix", "jrdf", "jrdf_schema.json")
+        with open(schema_file, "r") as f:
+            schema = json.load(f)
 
-        if "links" not in jrdf or not isinstance(jrdf["links"], list):
-            print("Invalid JRDF: Missing or invalid 'links' field.")
-            return
-
-        if "joints" not in jrdf or not isinstance(jrdf["joints"], list):
-            print("Invalid JRDF: Missing or invalid 'joints' field.")
-            return
-
+        jsonschema.validate(instance=jrdf, schema=schema)
         print(f"JRDF file '{jrdf_file}' is valid.")
-    except Exception as e:
+    except jsonschema.ValidationError as e:
         print(f"Error validating JRDF file '{jrdf_file}': {e}")
 
 
@@ -373,7 +369,7 @@ def main(args: argparse.Namespace) -> None:
         return
 
     if function == "validate":
-        jrdf_file = args.arg
+        jrdf_file = args.args[0] if len(args.args) > 0 else None
         if not jrdf_file:
             print("Error! 'validate' requires an input JRDF file as an argument.")
             return

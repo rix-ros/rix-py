@@ -10,6 +10,9 @@ from rix.rob.msg_util import (
 from rix.msg.geometry import TF, TransformStamped
 from rix.msg.sensor import JS
 from rix.msg.standard import Time
+from rix.rob.math_parser import (
+    MATH_BINDINGS,
+)
 
 
 class RobotModel:
@@ -25,20 +28,26 @@ class RobotModel:
         with open(filename, "r") as f:
             data = json.load(f)
 
+        # Parse constants
+        constants: dict[str, float] = MATH_BINDINGS.copy()
+        for const in data.get("constants", []):
+            constants[const["name"]] = const["value"]
+
         # Parse materials
         for material_data in data.get("materials", []):
-            material = Material.from_json(material_data)
+            material = Material.from_json(material_data, constants)
             self.materials[material.name] = material
 
         # Parse links
         for link_data in data.get("links", []):
-            link = Link.from_json(link_data)
+            link = Link.from_json(link_data, constants)
             self.links[link.name] = link
 
         # Parse joints
         for joint_data in data.get("joints", []):
-            joint = Joint.from_json(joint_data)
+            joint = Joint.from_json(joint_data, constants)
             self.joints[joint.name] = joint
+
         # Resolve mimic references
         for joint in self.joints.values():
             if joint.is_mimic():
@@ -49,6 +58,7 @@ class RobotModel:
                     raise ValueError(
                         f"Mimic joint '{mimic_name}' not found for joint '{joint.name}'"
                     )
+
         # Resolve Link parent-child relationships
         for joint in self.joints.values():
             if joint.parent in self.links and joint.child in self.links:
@@ -60,6 +70,7 @@ class RobotModel:
                 raise ValueError(
                     f"Joint '{joint.name}' has invalid parent '{joint.parent}' or child '{joint.child}' link."
                 )
+
         # Identify root link
         for link in self.links.values():
             if link.is_root():

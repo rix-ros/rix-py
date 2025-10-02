@@ -173,7 +173,7 @@ class Open3DRobotModel:
         return link_name, visuals, visual_origins
 
     def parse_dae_mesh(self, filename: str) -> list[o3d.geometry.TriangleMesh] | None:
-        mesh = collada.Collada(filename, ignore=[collada.DaeBrokenRefError])
+        mesh = collada.Collada(filename, ignore=[collada.DaeBrokenRefError, collada.DaeError])
         if len(mesh.geometries) == 0:
             return None
 
