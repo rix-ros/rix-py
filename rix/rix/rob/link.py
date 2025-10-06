@@ -1,11 +1,7 @@
 from enum import Enum
 import numpy as np
-from rix.rob.math_parser import (
-    parse_origin,
-    parse_vector3,
-    parse_vector4,
-    parse_number_or_expression,
-)
+from typing import Any
+from rix.rob.joint import origin_from_json
 
 
 class GeometryType(Enum):
@@ -20,9 +16,7 @@ class Geometry:
         self.type = type
 
     @staticmethod
-    def from_json(
-        data: dict[str, any] | None, constants: dict[str, float]
-    ) -> "Geometry":
+    def from_json(data: dict[str, Any] | None) -> "Geometry":
         """
         Create a Geometry object from a JSON dictionary. We make assumptions
         that PyLance doesn't like but we know it is safe because of the schema.
@@ -34,17 +28,17 @@ class Geometry:
         geom_type = GeometryType[data["type"].upper()]
 
         if geom_type == GeometryType.SPHERE:
-            radius = parse_number_or_expression(data.get("radius", 0.0), constants)
+            radius = data.get("radius", 0.0)
             return Sphere(radius)
         elif geom_type == GeometryType.BOX:
-            size = parse_vector3(data.get("size", None), constants)
+            size = np.array(data.get("size", None))
             return Box(size)
         elif geom_type == GeometryType.CYLINDER:
-            radius = parse_number_or_expression(data.get("radius", 0.0), constants)
-            length = parse_number_or_expression(data.get("length", 0.0), constants)
+            radius = data.get("radius", 0.0)
+            length = data.get("length", 0.0)
             return Cylinder(radius, length)
         elif geom_type == GeometryType.MESH:
-            scale = parse_vector3(data.get("scale", [1, 1, 1]), constants)
+            scale = np.array(data.get("scale", [1, 1, 1]))
             return Mesh(data["filename"], scale)
         else:
             raise ValueError(f"Unknown geometry type: {data['type']}")
@@ -83,14 +77,12 @@ class Material:
         self.texture_filename = texture_filename
 
     @staticmethod
-    def from_json(
-        data: dict[str, any] | None, constants: dict[str, float]
-    ) -> "Material":
+    def from_json(data: dict[str, Any] | None) -> "Material":
         if data is None:
             return Material("", np.array([0.8, 0.8, 0.8, 1.0]))
 
         name = data.get("name", "")
-        color = parse_vector4(data.get("color", [0.8, 0.8, 0.8, 1.0]), constants)
+        color = data.get("color", [0.8, 0.8, 0.8, 1.0])
         texture_filename = data.get("texture_filename", "")
         return Material(name, color, texture_filename)
 
@@ -117,24 +109,18 @@ class Inertial:
         self.izz = izz
 
     @staticmethod
-    def from_json(
-        data: dict[str, any] | None, constants: dict[str, float]
-    ) -> "Inertial":
+    def from_json(data: dict[str, Any] | None) -> "Inertial":
         if data is None:
             return Inertial(np.eye(4), 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0)
 
-        origin = parse_origin(data.get("origin", None), constants)
-        mass = parse_number_or_expression(data.get("mass", 0.0), constants)
-        inertia = data.get("inertia", None)
-        if inertia is None:
-            raise ValueError("Inertia data is missing in Inertial JSON")
-
-        ixx = parse_number_or_expression(inertia.get("ixx", 0.0), constants)
-        ixy = parse_number_or_expression(inertia.get("ixy", 0.0), constants)
-        ixz = parse_number_or_expression(inertia.get("ixz", 0.0), constants)
-        iyy = parse_number_or_expression(inertia.get("iyy", 0.0), constants)
-        iyz = parse_number_or_expression(inertia.get("iyz", 0.0), constants)
-        izz = parse_number_or_expression(inertia.get("izz", 0.0), constants)
+        origin = origin_from_json(data.get("origin", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        mass = data.get("mass", 0.0)
+        ixx = data.get("ixx", 0.0)
+        ixy = data.get("ixy", 0.0)
+        ixz = data.get("ixz", 0.0)
+        iyy = data.get("iyy", 0.0)
+        iyz = data.get("iyz", 0.0)
+        izz = data.get("izz", 0.0)
         return Inertial(origin, mass, ixx, ixy, ixz, iyy, iyz, izz)
 
 
@@ -145,10 +131,10 @@ class Visual:
         self.material = material
 
     @staticmethod
-    def from_json(data: dict[str, any], constants: dict[str, float]) -> "Visual":
-        origin = parse_origin(data.get("origin", None), constants)
-        geometry = Geometry.from_json(data.get("geometry", None), constants)
-        material = Material.from_json(data.get("material", None), constants)
+    def from_json(data: dict[str, Any]) -> "Visual":
+        origin = origin_from_json(data.get("origin", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        geometry = Geometry.from_json(data.get("geometry", None))
+        material = Material.from_json(data.get("material", None))
         return Visual(origin, geometry, material)
 
 
@@ -158,9 +144,9 @@ class Collision:
         self.geometry = geometry
 
     @staticmethod
-    def from_json(data: dict[str, any], constants: dict[str, float]) -> "Collision":
-        origin = parse_origin(data.get("origin", None), constants)
-        geometry = Geometry.from_json(data.get("geometry", None), constants)
+    def from_json(data: dict[str, Any]) -> "Collision":
+        origin = origin_from_json(data.get("origin", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        geometry = Geometry.from_json(data.get("geometry", None))
         return Collision(origin, geometry)
 
 
@@ -171,22 +157,20 @@ class Link:
         visuals: list[Visual],
         collisions: list[Collision],
         inertial: Inertial,
-        parent: str = "",
-        children: list[str] = [],
     ):
         self.visuals = visuals
         self.collisions = collisions
         self.inertial = inertial
         self.name = name
-        self.parent = parent
-        self.children = children
+        self.parent = ""
+        self.children: list[str] = []
 
     @staticmethod
-    def from_json(data: dict[str, any], constants: dict[str, float]) -> "Link":
+    def from_json(data: dict[str, Any]) -> "Link":
         name = data.get("name", "")
-        visuals = [Visual.from_json(v, constants) for v in data.get("visuals", [])]
-        collisions = [Collision.from_json(c, constants) for c in data.get("collisions", [])]
-        inertial = Inertial.from_json(data.get("inertial", None), constants)
+        visuals = [Visual.from_json(v) for v in data.get("visuals", [])]
+        collisions = [Collision.from_json(c) for c in data.get("collisions", [])]
+        inertial = Inertial.from_json(data.get("inertial", None))
         return Link(name, visuals, collisions, inertial)
 
     def is_root(self) -> bool:

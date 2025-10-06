@@ -10,9 +10,6 @@ from rix.rob.msg_util import (
 from rix.msg.geometry import TF, TransformStamped
 from rix.msg.sensor import JS
 from rix.msg.standard import Time
-from rix.rob.math_parser import (
-    MATH_BINDINGS,
-)
 
 
 class RobotModel:
@@ -21,31 +18,20 @@ class RobotModel:
         self.joints: dict[str, Joint] = {}
         self.root: Link | None = None
         self.world_to_root: np.ndarray = np.eye(4)
-        self.materials: dict[str, Material] = {}
         self.from_json(filename)
 
     def from_json(self, filename: str) -> None:
         with open(filename, "r") as f:
             data = json.load(f)
 
-        # Parse constants
-        constants: dict[str, float] = MATH_BINDINGS.copy()
-        for const in data.get("constants", []):
-            constants[const["name"]] = const["value"]
-
-        # Parse materials
-        for material_data in data.get("materials", []):
-            material = Material.from_json(material_data, constants)
-            self.materials[material.name] = material
-
         # Parse links
         for link_data in data.get("links", []):
-            link = Link.from_json(link_data, constants)
+            link = Link.from_json(link_data)
             self.links[link.name] = link
 
         # Parse joints
         for joint_data in data.get("joints", []):
-            joint = Joint.from_json(joint_data, constants)
+            joint = Joint.from_json(joint_data)
             self.joints[joint.name] = joint
 
         # Resolve mimic references
@@ -62,10 +48,8 @@ class RobotModel:
         # Resolve Link parent-child relationships
         for joint in self.joints.values():
             if joint.parent in self.links and joint.child in self.links:
-                parent_link = self.links[joint.parent]
-                parent_link.children.append(joint.name)
-                child_link = self.links[joint.child]
-                child_link.parent = parent_link.name
+                self.links[joint.parent].children.append(joint.name)
+                self.links[joint.child].parent = joint.name
             else:
                 raise ValueError(
                     f"Joint '{joint.name}' has invalid parent '{joint.parent}' or child '{joint.child}' link."
@@ -76,6 +60,7 @@ class RobotModel:
             if link.is_root():
                 self.root = link
                 break
+
         if self.root is None:
             raise ValueError("No root link found in the robot model.")
 
