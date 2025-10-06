@@ -1,0 +1,334 @@
+{
+    "$include": ["colors.json", "defaults.json"],
+    "$macros": [
+        {
+            "name": "base_xy",
+            "body": 0.1
+        },
+        {
+            "name": "torso_xy",
+            "body": 0.075
+        },
+        {
+            "name": "eye_socket",
+            "params": ["side"],
+            "body": {
+                "child": "eyeball_${side}",
+                "name": "eye_socket_${side}",
+                "origin": [0.0375, -0.0375, 0.45, 0, 0, 0],
+                "parent": "torso",
+                "type": "fixed"
+            }
+        }
+    ],
+    "name": "SimpleBot",
+    "joints": [
+        {
+            "axis": [0, 0, 1],
+            "child": "torso",
+            "limits": {
+                "effort": 1000,
+                "lower": "-${math.pi}",
+                "upper": "${math.pi}",
+                "velocity": 100
+            },
+            "name": "waist",
+            "parent": "base",
+            "type": "revolute",
+            "origin": "${defaults.origin}"
+        },
+        {
+            "axis": [0, 1, 0],
+            "child": "upper_arm",
+            "limits": {
+                "effort": 1000,
+                "lower": "${-math.pi/2}",
+                "upper": "${math.pi/2}",
+                "velocity": 100
+            },
+            "name": "shoulder",
+            "origin": [0.0375, 0, 0.3, 0, 0, 0],
+            "parent": "torso",
+            "type": "revolute"
+        },
+        {
+            "axis": [0, 1, 0],
+            "child": "forearm",
+            "limits": {
+                "effort": 1000,
+                "lower": "${-math.pi/2}",
+                "upper": "${math.pi/2}",
+                "velocity": 100
+            },
+            "name": "elbow",
+            "origin": [0.2, 0, 0, 0, 0, 0],
+            "parent": "upper_arm",
+            "type": "prismatic"
+        },
+        {
+            "axis": [1, 0, 0],
+            "child": "tool",
+            "limits": {
+                "effort": 1000,
+                "lower": 0,
+                "upper": 0.025,
+                "velocity": 100
+            },
+            "name": "wrist",
+            "origin": [0.1, 0, 0, 0, 0, 0],
+            "parent": "forearm",
+            "type": "prismatic"
+        },
+        {
+            "$macro": "eye_socket",
+            "$params": {
+                "side": "right"
+            }
+        },
+        {
+            "$macro": "eye_socket",
+            "$params": {
+                "side": "left"
+            }
+        },
+        {
+            "axis": [0, 0, 1],
+            "child": "pupil_left",
+            "limits": {
+                "effort": 1000,
+                "lower": -1,
+                "upper": 1,
+                "velocity": 100
+            },
+            "name": "eye_lens_left",
+            "parent": "eyeball_left",
+            "type": "revolute"
+        },
+        {
+            "axis": [1, 0, 0],
+            "child": "pupil_right",
+            "limits": {
+                "effort": 1000,
+                "lower": -1,
+                "upper": 1,
+                "velocity": 100
+            },
+            "name": "eye_lens_right",
+            "parent": "eyeball_right",
+            "type": "revolute"
+        }
+    ],
+    "links": [
+        {
+            "name": "base",
+            "visuals": [
+                {
+                    "geometry": {
+                        "type": "box",
+                        "size": ["${base_xy}", "${base_xy}", 0.05]
+                    },
+                    "material": {
+                        "color": "${colors.dark_blue}"
+                    },
+                    "origin": {
+                        "$macro": "defaults.origin_xyz",
+                        "$params": {
+                            "x": "-${base_xy}/2",
+                            "y": "-${base_xy}/2",
+                            "z": 0
+                        }
+                    }
+                }
+            ],
+            "inertial": {
+                "$macro": "defaults.inertia",
+                "$params": {
+                    "mass": 1.0,
+                    "origin": "${defaults.origin}"
+                }
+            }
+        },
+        {
+            "name": "torso",
+            "visuals": [
+                {
+                    "geometry": {
+                        "type": "box",
+                        "size": ["${torso_xy}", "${torso_xy}", 0.4]
+                    },
+                    "material": {
+                        "color": "${colors.maize}"
+                    },
+                    "origin": [
+                        "-${torso_xy}/2",
+                        "-${torso_xy}/2",
+                        0.05,
+                        0,
+                        0,
+                        0
+                    ]
+                }
+            ],
+            "inertial": {
+                "$macro": "defaults.inertia",
+                "$params": {
+                    "mass": 2.0,
+                    "origin": "${defaults.origin}"
+                }
+            }
+        },
+        {
+            "name": "upper_arm",
+            "visuals": [
+                {
+                    "geometry": {
+                        "type": "box",
+                        "size": [0.2, 0.02, 0.02]
+                    },
+                    "material": {
+                        "color": "${colors.dark_blue}"
+                    },
+                    "origin": [0, -0.01, 0, 0, 0, 0]
+                }
+            ],
+            "inertial": {
+                "$macro": "defaults.inertia",
+                "$params": {
+                    "mass": 0.75,
+                    "origin": "${defaults.origin}"
+                }
+            }
+        },
+        {
+            "name": "forearm",
+            "visuals": [
+                {
+                    "geometry": {
+                        "type": "box",
+                        "size": [0.1, 0.02, 0.02]
+                    },
+                    "material": {
+                        "color": "${colors.dark_blue}"
+                    },
+                    "origin": [0, -0.01, 0, 0, 0, 0]
+                }
+            ],
+            "inertial": {
+                "$macro": "defaults.inertia",
+                "$params": {
+                    "mass": 0.25,
+                    "origin": "${defaults.origin}"
+                }
+            }
+        },
+        {
+            "name": "tool",
+            "visuals": [
+                {
+                    "geometry": {
+                        "length": 0.05,
+                        "radius": 0.005,
+                        "type": "cylinder"
+                    },
+                    "material": {
+                        "color": "${colors.maize}"
+                    },
+                    "origin": [0, 0, 0.01, 0, "${math.pi/2}", 0]
+                }
+            ],
+            "inertial": {
+                "$macro": "defaults.inertia",
+                "$params": {
+                    "mass": 0.1,
+                    "origin": "${defaults.origin}"
+                }
+            }
+        },
+        {
+            "name": "eyeball_left",
+            "visuals": [
+                {
+                    "geometry": {
+                        "radius": 0.02,
+                        "type": "sphere"
+                    },
+                    "material": {
+                        "color": "${colors.white}"
+                    }
+                }
+            ],
+            "inertial": {
+                "$macro": "defaults.inertia",
+                "$params": {
+                    "mass": 0.1,
+                    "origin": "${defaults.origin}"
+                }
+            }
+        },
+        {
+            "name": "eyeball_right",
+            "visuals": [
+                {
+                    "geometry": {
+                        "radius": 0.02,
+                        "type": "sphere"
+                    },
+                    "material": {
+                        "color": "${colors.white}"
+                    }
+                }
+            ],
+            "inertial": {
+                "$macro": "defaults.inertia",
+                "$params": {
+                    "mass": 0.1,
+                    "origin": "${defaults.origin}"
+                }
+            }
+        },
+        {
+            "name": "pupil_left",
+            "visuals": [
+                {
+                    "geometry": {
+                        "radius": 0.01,
+                        "type": "sphere"
+                    },
+                    "material": {
+                        "color": "${colors.black}"
+                    },
+                    "origin": [0, -0.015, 0, 0, 0, 0]
+                }
+            ],
+            "inertial": {
+                "$macro": "defaults.inertia",
+                "$params": {
+                    "mass": 0.01,
+                    "origin": "${defaults.origin}"
+                }
+            }
+        },
+        {
+            "name": "pupil_right",
+            "visuals": [
+                {
+                    "geometry": {
+                        "radius": 0.01,
+                        "type": "sphere"
+                    },
+                    "material": {
+                        "color": "${colors.black}"
+                    },
+                    "origin": [0, -0.015, 0, 0, 0, 0]
+                }
+            ],
+            "inertial": {
+                "$macro": "defaults.inertia",
+                "$params": {
+                    "mass": 0.01,
+                    "origin": "${defaults.origin}"
+                }
+            }
+        }
+    ]
+}

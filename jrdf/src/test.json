@@ -1,0 +1,33 @@
+{
+    "$macros": [
+        {
+            "name": "polyfit",
+            "params": ["x", "y", "deg"],
+            "body": "${np.polyfit(x, y, deg).tolist()}"
+        },
+        {
+            "name": "foo",
+            "body": [0, 1, 2, 3, 4]
+        },
+        {
+            "name": "bar",
+            "body": [5, 6, 9, 14, 21]
+        },
+        {
+            "name": "coefficients",
+            "body": {
+                "$macro": "polyfit",
+                "$params": {
+                    "x": "${foo}",
+                    "y": "${bar}",
+                    "deg": 2
+                }
+            }
+        }
+    ],
+    "value": {
+        "$if": "${coefficients[0] > 2}",
+        "$then": "${coefficients[1]}",
+        "$else": "${coefficients[2]}"
+    }
+}

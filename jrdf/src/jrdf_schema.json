@@ -1,0 +1,369 @@
+{
+  "title": "JRDF Schema",
+  "description": "The JSON Robot Description Format (JRDF) is a JSON-based format for describing the structure and properties of robots.",
+  "type": "object",
+  "$defs": {
+    "property_name": {
+      "type": "string",
+      "pattern": "^[a-zA-Z_][a-zA-Z0-9_/]*$"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "vector3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "vector4": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "vector6": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 6,
+      "maxItems": 6
+    },
+    "material": {
+      "type": "object",
+      "oneOf": [
+        {
+          "properties": {
+            "color": {
+              "$ref": "#/$defs/vector4"
+            }
+          },
+          "required": ["color"]
+        },
+        {
+          "properties": {
+            "texture_filename": {
+              "$ref": "#/$defs/file_name"
+            }
+          },
+          "required": ["texture_filename"]
+        }
+      ]
+    },
+    "box_geometry": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "box"
+        },
+        "size": {
+          "$ref": "#/$defs/vector3"
+        }
+      },
+      "required": ["type", "size"]
+    },
+    "cylinder_geometry": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "cylinder"
+        },
+        "radius": {
+          "type": "number"
+        },
+        "length": {
+          "type": "number"
+        }
+      },
+      "required": ["type", "radius", "length"]
+    },
+    "sphere_geometry": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "sphere"
+        },
+        "radius": {
+          "type": "number"
+        }
+      },
+      "required": ["type", "radius"]
+    },
+    "mesh_geometry": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "mesh"
+        },
+        "filename": {
+          "$ref": "#/$defs/file_name"
+        },
+        "scale": {
+          "$ref": "#/$defs/vector3",
+          "default": [1, 1, 1]
+        }
+      },
+      "required": ["type", "filename"]
+    },
+    "geometry": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/box_geometry"
+        },
+        {
+          "$ref": "#/$defs/cylinder_geometry"
+        },
+        {
+          "$ref": "#/$defs/sphere_geometry"
+        },
+        {
+          "$ref": "#/$defs/mesh_geometry"
+        }
+      ]
+    },
+    "joint_limits": {
+      "type": "object",
+      "properties": {
+        "lower": {
+          "type": "number"
+        },
+        "upper": {
+          "type": "number"
+        },
+        "effort": {
+          "type": "number"
+        },
+        "velocity": {
+          "type": "number"
+        }
+      },
+      "required": ["effort", "velocity"]
+    },
+    "joint_dynamics": {
+      "type": "object",
+      "properties": {
+        "damping": {
+          "type": "number"
+        },
+        "friction": {
+          "type": "number"
+        }
+      }
+    },
+    "joint_safety": {
+      "type": "object",
+      "properties": {
+        "soft_lower_limit": {
+          "type": "number"
+        },
+        "soft_upper_limit": {
+          "type": "number"
+        },
+        "k_position": {
+          "type": "number"
+        },
+        "k_velocity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "soft_lower_limit",
+        "soft_upper_limit",
+        "k_position",
+        "k_velocity"
+      ]
+    },
+    "joint_mimic": {
+      "type": "object",
+      "properties": {
+        "joint": {
+          "$ref": "#/$defs/property_name"
+        },
+        "multiplier": {
+          "type": "number",
+          "default": 1.0
+        },
+        "offset": {
+          "type": "number",
+          "default": 0.0
+        }
+      },
+      "required": ["joint"]
+    },
+    "link_inertial": {
+      "type": "object",
+      "properties": {
+        "mass": {
+          "type": "number"
+        },
+        "ixx": {
+          "type": "number"
+        },
+        "iyy": {
+          "type": "number"
+        },
+        "izz": {
+          "type": "number"
+        },
+        "ixy": {
+          "type": "number"
+        },
+        "ixz": {
+          "type": "number"
+        },
+        "iyz": {
+          "type": "number"
+        },
+        "origin": {
+          "$ref": "#/$defs/vector6"
+        }
+      },
+      "required": ["mass", "ixx", "iyy", "izz", "ixy", "ixz", "iyz"]
+    },
+    "link_visual": {
+      "type": "object",
+      "properties": {
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "origin": {
+          "$ref": "#/$defs/vector6"
+        },
+        "material": {
+          "$ref": "#/$defs/material"
+        }
+      },
+      "required": ["geometry"]
+    },
+    "link_collision": {
+      "type": "object",
+      "properties": {
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "origin": {
+          "$ref": "#/$defs/vector6"
+        }
+      },
+      "required": ["geometry"]
+    },
+    "joint": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/property_name"
+        },
+        "parent": {
+          "$ref": "#/$defs/property_name"
+        },
+        "child": {
+          "$ref": "#/$defs/property_name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["fixed", "revolute", "continuous", "prismatic"]
+        },
+        "origin": {
+          "$ref": "#/$defs/vector6"
+        },
+        "axis": {
+          "$ref": "#/$defs/vector3"
+        },
+        "limits": {
+          "$ref": "#/$defs/joint_limits"
+        },
+        "dynamics": {
+          "$ref": "#/$defs/joint_dynamics"
+        },
+        "safety": {
+          "$ref": "#/$defs/joint_safety"
+        },
+        "mimic": {
+          "$ref": "#/$defs/joint_mimic"
+        }
+      },
+      "required": ["name", "parent", "child", "type"],
+      "if": {
+        "properties": {
+          "type": {
+            "enum": ["revolute", "prismatic", "continuous"]
+          }
+        }
+      },
+      "then": {
+        "required": ["axis"],
+        "if": {
+          "properties": {
+            "type": {
+              "enum": ["revolute", "prismatic"]
+            }
+          }
+        },
+        "then": {
+          "required": ["limits"]
+        }
+      },
+      "else": {
+        "properties": {
+          "axis": false,
+          "limits": false,
+          "dynamics": false,
+          "safety": false,
+          "mimic": false
+        }
+      }
+    },
+    "link": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/property_name"
+        },
+        "inertial": {
+          "$ref": "#/$defs/link_inertial"
+        },
+        "visuals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/link_visual"
+          }
+        },
+        "collisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/link_collision"
+          }
+        }
+      },
+      "required": ["name"]
+    }
+  },
+  "properties": {
+    "name": {
+      "description": "The name of the robot.",
+      "$ref": "#/$defs/property_name"
+    },
+    "joints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/joint"
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/link"
+      }
+    }
+  },
+  "required": ["name", "joints", "links"]
+}

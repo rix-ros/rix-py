@@ -1,0 +1,27 @@
+{
+    "$macros": [
+        {
+            "name": "origin",
+            "body": [0, 0, 0, 0, 0, 0]
+        },
+        {
+            "name": "origin_xyz",
+            "params": ["x", "y", "z"],
+            "body": ["${x}", "${y}", "${z}", 0, 0, 0]
+        },
+        {
+            "name": "inertia",
+            "params": ["mass", "origin"],
+            "body": {
+                "mass": "${mass}",
+                "origin": "${origin}",
+                "ixx": 0.0,
+                "ixy": 0.0,
+                "ixz": 0.0,
+                "iyy": 0.0,
+                "iyz": 0.0,
+                "izz": 0.0
+            }
+        }
+    ]
+}
