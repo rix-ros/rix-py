@@ -15,7 +15,18 @@
             "body": {
                 "child": "eyeball_${side}",
                 "name": "eye_socket_${side}",
-                "origin": [0.0375, -0.0375, 0.45, 0, 0, 0],
+                "origin": [
+                    {
+                        "$if": "${side == 'right'}",
+                        "$then": -0.0375,
+                        "$else": 0.0375
+                    },
+                    -0.0375,
+                    0.45,
+                    0,
+                    0,
+                    0
+                ],
                 "parent": "torso",
                 "type": "fixed"
             }
@@ -116,6 +127,13 @@
             "name": "eye_lens_right",
             "parent": "eyeball_right",
             "type": "revolute"
+        },
+        {
+            "child": "top_hat",
+            "name": "top_hat_joint",
+            "origin": [0, 0, 0.45, 0, 0, 0],
+            "parent": "torso",
+            "type": "fixed"
         }
     ],
     "links": [
@@ -329,6 +347,21 @@
                     "origin": "${defaults.origin}"
                 }
             }
+        },
+        {
+            "name": "top_hat",
+            "visuals": [
+                {
+                    "geometry": {
+                        "type": "mesh",
+                        "filename": "top_hat.obj",
+                        "scale": [0.0025, 0.0025, 0.0025]
+                    },
+                    "material": {
+                        "color": "${colors.dark_blue}"
+                    }
+                }
+            ]
         }
     ]
 }

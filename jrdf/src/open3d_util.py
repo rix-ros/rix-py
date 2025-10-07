@@ -3,7 +3,7 @@ import collada
 import numpy as np
 import open3d as o3d
 from rix.rob.robot_model import RobotModel
-from rix.rob.link import Link, Material, GeometryType
+from rix.rob.link import Link, Material, GeometryType, Geometry
 
 HOME = os.path.expanduser("~")
 
@@ -19,11 +19,7 @@ class Open3DRobotModel:
 
         robot_model = RobotModel(HOME + "/.rix/jrdf/models/" + name + "/model.json")
         for _, link in robot_model.links.items():
-            materials = {}
-            for material in robot_model.materials.values():
-                materials[material.name] = material
-
-            link_name, visuals, visual_origins = self.parse_link(link, materials)
+            link_name, visuals, visual_origins = self.parse_link(link)
 
             for e in visuals:
                 vis.add_geometry(e)
@@ -81,26 +77,22 @@ class Open3DRobotModel:
             self.fk_recursive(child, mstack, tdict, cdict, global_tf)
             mstack.pop()
 
-    def parse_geometry(self, geometry: dict):
+    def parse_geometry(self, geometry: Geometry) -> list[o3d.geometry.TriangleMesh]:
         meshes = []
         if geometry.type == GeometryType.BOX:
             size = geometry.size
             meshes.append(
-                o3d.geometry.TriangleMesh.create_box(
-                    width=size[0], height=size[1], depth=size[2]
-                )
+                o3d.geometry.TriangleMesh.create_box(size[0], size[1], size[2])
             )
             meshes[-1].compute_vertex_normals()
         elif geometry.type == GeometryType.CYLINDER:
             radius = geometry.radius
             length = geometry.length
-            meshes.append(
-                o3d.geometry.TriangleMesh.create_cylinder(radius=radius, height=length)
-            )
+            meshes.append(o3d.geometry.TriangleMesh.create_cylinder(radius, length))
             meshes[-1].compute_vertex_normals()
         elif geometry.type == GeometryType.SPHERE:
             radius = geometry.radius
-            meshes.append(o3d.geometry.TriangleMesh.create_sphere(radius=radius))
+            meshes.append(o3d.geometry.TriangleMesh.create_sphere(radius))
             meshes[-1].compute_vertex_normals()
         elif geometry.type == GeometryType.MESH:
             print(f"Loading mesh: {geometry.filename}")
@@ -123,7 +115,7 @@ class Open3DRobotModel:
                 scale = geometry.scale
                 for mesh in meshes_:
                     mesh.vertices = o3d.utility.Vector3dVector(
-                        np.asarray(mesh.vertices) * np.array(scale)
+                        np.asarray(mesh.vertices) * scale
                     )
             meshes.extend(meshes_)
         else:
@@ -134,36 +126,30 @@ class Open3DRobotModel:
             mesh.compute_triangle_normals()
         return meshes
 
-    def parse_link(self, link: Link, materials: dict[str, Material]):
+    def parse_link(self, link: Link):
         link_name = link.name
         visuals = []
         visual_origins = []
         default_color = [70 / 255, 70 / 255, 70 / 255]
         if link.visuals is not None:
             for visual in link.visuals:
-                material = None
-                if visual.material.name in materials:
-                    material = materials[visual.material.name]
-                else:
-                    material = visual.material
-
+                material = visual.material
                 # Call the parse geometry function.
                 meshes = self.parse_geometry(visual.geometry)
                 if material is not None:
                     for mesh in meshes:
                         if len(material.texture_filename) > 0:
-                            if np.asarray(mesh.triangle_uvs).size == 0:
-                                mesh.paint_uniform_color(default_color)
-                            else:
-                                texture_path = (
-                                    HOME
-                                    + "/.rix/jrdf/models/"
-                                    + self.name
-                                    + "/assets/"
-                                    + material.texture_filename
-                                )
-                                texture = o3d.io.read_image(texture_path)
-                                mesh.textures = [o3d.geometry.Image(texture)]
+                            texture_path = (
+                                HOME
+                                + "/.rix/jrdf/models/"
+                                + self.name
+                                + "/assets/"
+                                + material.texture_filename
+                            )
+                            print(f"Loading texture: {texture_path}")
+                            texture = o3d.io.read_image(texture_path)
+                            mesh.textures = [texture]
+                            print(mesh.textures)
                         else:
                             mesh.paint_uniform_color(material.color[:3])
 
@@ -173,7 +159,9 @@ class Open3DRobotModel:
         return link_name, visuals, visual_origins
 
     def parse_dae_mesh(self, filename: str) -> list[o3d.geometry.TriangleMesh] | None:
-        mesh = collada.Collada(filename, ignore=[collada.DaeBrokenRefError, collada.DaeError])
+        mesh = collada.Collada(
+            filename, ignore=[collada.DaeBrokenRefError, collada.DaeError]
+        )
         if len(mesh.geometries) == 0:
             return None
 
@@ -201,7 +189,7 @@ class Open3DRobotModel:
                     raise ValueError("No triangles found in the .dae file.")
 
                 # Convert to Open3D TriangleMesh
-                mesh_o3d = o3d.geometry.TriangleMesh()
+                mesh_o3d = o3d.t.geometry.TriangleMesh()
                 mesh_o3d.vertices = o3d.utility.Vector3dVector(vertices)
                 mesh_o3d.triangles = o3d.utility.Vector3iVector(indices.reshape(-1, 3))
                 mesh_o3d.vertex_normals = o3d.utility.Vector3dVector(normals)

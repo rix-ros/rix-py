@@ -60,10 +60,12 @@ python3 -m PyInstaller \
   --optimize 2 \
   --noupx \
   --hidden-import jsonschema \
+  --hidden-import jsonmacros \
   --hidden-import open3d \
   --hidden-import collada \
   --add-data "$(python3 -c 'import collada,os; print(os.path.join(os.path.dirname(collada.__file__), "resources") + ":collada/resources")')" \
-  --name jrdf jrdf/src/main.py
+  --name jrdf \
+  jrdf/src/main.py
 
 # Check if the executable was created
 if [ ! -f "dist/jrdf/jrdf" ]; then
