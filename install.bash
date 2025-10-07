@@ -64,6 +64,7 @@ python3 -m PyInstaller \
   --hidden-import open3d \
   --hidden-import collada \
   --add-data "$(python3 -c 'import collada,os; print(os.path.join(os.path.dirname(collada.__file__), "resources") + ":collada/resources")')" \
+  --add-data "$(python3 -c 'import jsonmacros,os; print(os.path.join(os.path.dirname(jsonmacros.__file__), "json_macro_schema.json") + ":jsonmacros/")')" \
   --name jrdf \
   jrdf/src/main.py
 

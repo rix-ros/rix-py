@@ -1,6 +1,7 @@
 from rix.msg.geometry import Transform, Vector3, Quaternion
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Slerp
 
 
 def transform_to_matrix(transform: Transform) -> np.ndarray:
@@ -123,7 +124,9 @@ def interpolate_transform(m1: np.ndarray, m2: np.ndarray, t: float) -> np.ndarra
 
     rot1 = R.from_matrix(m1[0:3, 0:3])
     rot2 = R.from_matrix(m2[0:3, 0:3])
-    interp_rot = R.slerp(0, 1, [rot1, rot2])(t)
+    # interp_rot = R.slerp(0, 1, [rot1, rot2])(t)
+    slerp = Slerp([0, 1], R.concatenate([rot1, rot2]))
+    interp_rot = slerp(t)
 
     interp_matrix = np.eye(4)
     interp_matrix[0:3, 3] = interp_trans

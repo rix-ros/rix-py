@@ -175,9 +175,10 @@ def convert(urdf_path: str, asset_dir: str | None) -> None:
         jrdf, assets = converter.convert(urdf_path, asset_dir)
 
         # Create output directory ./<name> if it doesn't exist
-        output_dir = os.path.join(".", jrdf["name"].lower())
+        name = jrdf["name"].lower()
+        output_dir = os.path.join(".", name)
         os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, "model.json")
+        output_file = os.path.join(output_dir, name + ".json")
         with open(output_file, "w") as f:
             json.dump(jrdf, f, indent=4)
 
