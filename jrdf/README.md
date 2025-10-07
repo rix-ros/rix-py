@@ -9,6 +9,11 @@ JRDF is a command-line tool for managing robot models in the JSON Robot Descript
 - **List Models:** Show all available JRDF models.
 - **Validate Models:** Check the structure of JRDF JSON files.
 - **Visualize Models:** Render robot models using Open3D.
+- **Advanced Texture Mapping:** Proper UV coordinate generation and texture application
+- **Multiple Collada Primitive Types:** Support for TriangleSets, PolygonLists, and LineSets
+- **Modern Visualization:** Upgraded visualization system with better texture support
+- **Enhanced Material System:** Comprehensive material and texture management
+- **Interactive Model Manipulation:** Runtime transform updates and color changes
 
 ---
 ## Installation
@@ -66,6 +71,145 @@ jrdf visualize my_robot
 ```
 
 ---
+## Open3D Robot Model
+
+### Features
+
+- **Automatic UV Coordinate Generation** for primitive shapes (box, cylinder, sphere)
+- **Collada Texture Extraction** from DAE files when available
+- **Fallback Texture Handling** for missing or failed textures
+- **Multiple Texture Formats**: PNG, JPG, BMP, TGA
+- **TriangleSets, PolygonLists, LineSets**: Direct conversion from Collada
+- **Modern Visualization**: Open3D 0.13+ API
+- **Interactive Features**: Runtime transform and color updates
+- **Robust Error Handling**: Continues processing even if some primitives fail
+
+### Usage Examples
+
+**Basic Visualization**
+```python
+from jrdf.src.open3d_util import Open3DRobotModel
+
+# Create robot model
+robot = Open3DRobotModel("fetch", use_modern_visualizer=True)
+
+# Get all geometries
+geometries = robot.get_all_geometries()
+
+# Simple visualization
+import open3d as o3d
+o3d.visualization.draw_geometries(geometries, window_name="My Robot")
+```
+
+**Advanced Material Handling**
+```python
+# Access material information
+for link_name, materials in robot.materials.items():
+    for i, material in enumerate(materials):
+        if material["has_texture"]:
+            print(f"Link {link_name} geometry {i} has texture: {material['texture_path']}")
+        else:
+            print(f"Link {link_name} geometry {i} uses color: {material['color']}")
+```
+
+**Custom Visualization Loop**
+```python
+import open3d as o3d
+import numpy as np
+
+# Create visualizer
+vis = o3d.visualization.Visualizer()
+vis.create_window(window_name="Interactive Robot Viewer", width=1200, height=800)
+
+# Add geometries
+geometries = robot.get_all_geometries()
+for geom in geometries:
+    vis.add_geometry(geom)
+
+# Animation loop
+def animate_joint():
+    angle = 0
+    while True:
+        # Update joint angle
+        transform = np.eye(4)
+        transform[:3, :3] = rotation_matrix_z(angle)
+        robot.update_link_transform("joint_link", transform)
+        
+        # Update visualization
+        vis.update_geometry()
+        vis.poll_events()
+        vis.update_renderer()
+        
+        angle += 0.01
+        if angle > 2 * np.pi:
+            angle = 0
+
+# Run animation
+animate_joint()
+```
+
+### Error Handling
+
+```python
+try:
+    robot = Open3DRobotModel("my_robot")
+    geometries = robot.get_all_geometries()
+    
+    if not geometries:
+        print("No geometries loaded")
+    else:
+        print(f"Successfully loaded {len(geometries)} geometries")
+        
+except FileNotFoundError as e:
+    print(f"Robot model files not found: {e}")
+except ValueError as e:
+    print(f"Invalid robot model: {e}")
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+### Performance Considerations
+
+1. **Large Models**: The system handles large models by streaming geometry data
+2. **Texture Memory**: Textures are cached to avoid reloading
+3. **UV Generation**: UV coordinates are generated on-demand for primitive shapes
+4. **Fallback Mechanisms**: Multiple fallback paths ensure robustness
+
+### Compatibility
+
+- **Open3D Versions**: Compatible with Open3D 0.13+ (with fallbacks for older versions)
+- **Python**: Requires Python 3.8+
+- **Dependencies**: NumPy, Open3D, Collada (pycollada)
+
+### Troubleshooting
+
+**Common Issues**
+
+1. **"visualization" not found**: Your Open3D installation may not include GUI support
+   - Solution: Install Open3D with GUI: `pip install open3d[gui]`
+
+2. **Textures not displaying**: 
+   - Check if texture files exist in the assets directory
+   - Verify Open3D version supports textures
+   - Enable modern visualizer: `use_modern_visualizer=True`
+
+3. **Collada import errors**:
+   - Install pycollada: `pip install pycollada`
+   - Check DAE file format compatibility
+
+**Debug Information**
+
+Enable debug output:
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+robot = Open3DRobotModel("robot_name", use_modern_visualizer=True)
+```
+
+This will provide detailed information about texture loading, geometry parsing, and visualization setup.
+
+---
 ## JRDF File Format
 
 JRDF files must conform to the [JRDF JSON Schema](./jrdf_schema.json). The format is designed to describe robot models in a structured and extensible way. Below are the key requirements and structure:
@@ -115,45 +259,35 @@ Supported geometry types for visuals and collisions:
 - `sphere`: Requires `radius`.
 - `mesh`: Requires `filename`, optional `scale`.
 
-### Materials
+#### Supported Mesh Formats
+- **STL**: Standard Tessellation Language
+- **OBJ**: Wavefront OBJ
+- **PLY**: Polygon File Format
+- **DAE**: Collada
 
-Materials can be defined globally or per visual element, supporting either RGBA color or texture filename.
+#### Supported Texture Formats
+- **PNG**: Portable Network Graphics
+- **JPG/JPEG**: Joint Photographic Experts Group
+- **BMP**: Bitmap
+- **TGA**: Targa
 
-### Expressions
+### Macros
 
-Numeric fields may accept either a number or an expression string. The expression string must only use simple operators (`+`, `-`, `*`, and `/`). Parentheses are permitted. The following table contains predefined mathematical constants that can be used in JRDF.
-
-| Name       | Value        |
-|------------|--------------|
-| M_PI       | pi           |
-| M_PI_2     | pi / 2       |
-| M_PI_4     | pi / 4       |
-| M_1_PI     | 1 / pi       |
-| M_2_PI     | 2 / pi       |
-| M_2_SQRTPI | 2 / sqrt(pi) |
-| M_SQRT2    | sqrt(2)      |
-| M_SQRT1_2  | 1 / sqrt(2)  |
-| M_E        | e            |
-| M_LOG2E    | log2(e)      |
-| M_LOG10E   | log10(e)     |
-| M_LN2      | ln(2)        |
-| M_LN10     | ln(10)       |
+Use [`jsonmacros`](https://github.com/rix-ros/jsonmacros) to parse parameterized or simple macro definitions and file includes.
 
 ### Example
 
 ```json
 {
   "name": "MyRobot",
-  "materials": [
+  "$macros": [
     {
       "name": "dark_blue",
-      "color": [0, 0.15294, 0.29804, 1]
-    }
-  ],
-  "constants": [
+      "body": [0, 0.15294, 0.29804, 1]
+    },
     {
-      "name": "x",
-      "value": 0.5
+        "name": "x",
+        "body": 0.5
     }
   ],
   "joints": [
@@ -171,10 +305,10 @@ Numeric fields may accept either a number or an expression string. The expressio
         {
           "geometry": {
             "type": "box",
-            "size": ["x", "x", 1]
+            "size": ["${x}", "${x}", 1]
           },
           "material": {
-            "name": "dark_blue"
+            "color": "${dark_blue}"
           }
         }
       ]
@@ -192,7 +326,7 @@ Numeric fields may accept either a number or an expression string. The expressio
             "color": [1, 0.79608, 0.01961, 1]
           },
           "origin": {
-            "xyz": ["x/2", "x/2", 1.25],
+            "xyz": ["${x/2}", "${x/2}", 1.25],
             "rpy": [0, 0, 0]
           }
         }

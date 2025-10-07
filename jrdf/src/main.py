@@ -222,15 +222,114 @@ def visualize(name: str) -> None:
 
     try:
         print(f"Visualizing JRDF model '{name}'...")
-        vis = o3d.visualization.Visualizer()
-        vis.create_window(window_name="JRDF Visualizer", width=800, height=600)
-        o3d_robot = Open3DRobotModel(name, vis)
-
-        vis.run()
-        vis.destroy_window()
+        
+        # Create the robot model
+        o3d_robot = Open3DRobotModel(name, use_modern_visualizer=True)
+        
+        # Get all geometries
+        geometries = o3d_robot.get_all_geometries()
+        
+        if not geometries:
+            print("No geometries found to visualize")
+            return
+            
+        print(f"Loaded {len(geometries)} geometry objects")
+        
+        # Try modern visualization first (better texture support)
+        try:
+            visualize_modern(geometries, name)
+        except Exception as e:
+            print(f"Modern visualizer failed ({e}), falling back to legacy...")
+            visualize_legacy(geometries, name)
 
     except Exception as e:
         print(f"Error visualizing JRDF model '{name}': {e}")
+
+def visualize_modern(geometries, name: str) -> None:
+    """Modern Open3D visualization with enhanced texture support"""
+    import open3d as o3d
+    
+    try:
+        # Filter out invalid geometries to prevent warnings
+        valid_geometries = []
+        for geom in geometries:
+            if isinstance(geom, o3d.geometry.TriangleMesh):
+                if not geom.is_empty() and len(geom.vertices) > 0 and len(geom.triangles) > 0:
+                    valid_geometries.append(geom)
+                else:
+                    print(f"Skipping empty triangle mesh")
+            elif isinstance(geom, o3d.geometry.LineSet):
+                if len(geom.points) > 0 and len(geom.lines) > 0:
+                    valid_geometries.append(geom)
+                else:
+                    print(f"Skipping empty line set")
+            else:
+                # Include other geometry types if they exist
+                valid_geometries.append(geom)
+        
+        if not valid_geometries:
+            print("No valid geometries to visualize")
+            return
+            
+        print(f"Visualizing {len(valid_geometries)} valid geometries")
+        
+        # Use Open3D's draw_geometries function with enhanced settings
+        o3d.visualization.draw_geometries(
+            valid_geometries,
+            window_name=f"JRDF Visualizer - {name}",
+            width=1024,
+            height=768,
+            left=50,
+            top=50
+        )
+    except Exception as e:
+        raise Exception(f"Modern visualization failed: {e}")
+
+def visualize_legacy(geometries, name: str) -> None:
+    """Legacy Open3D visualization with validation"""
+    import open3d as o3d
+    
+    try:
+        # Filter out invalid geometries
+        valid_geometries = []
+        for geom in geometries:
+            if isinstance(geom, o3d.geometry.TriangleMesh):
+                if not geom.is_empty() and len(geom.vertices) > 0 and len(geom.triangles) > 0:
+                    valid_geometries.append(geom)
+                else:
+                    print(f"Skipping empty triangle mesh in legacy visualization")
+            elif isinstance(geom, o3d.geometry.LineSet):
+                if len(geom.points) > 0 and len(geom.lines) > 0:
+                    valid_geometries.append(geom)
+                else:
+                    print(f"Skipping empty line set in legacy visualization")
+            else:
+                valid_geometries.append(geom)
+        
+        if not valid_geometries:
+            print("No valid geometries to visualize")
+            return
+            
+        print(f"Using legacy visualizer for {len(valid_geometries)} valid geometries")
+        
+        # Create legacy visualizer
+        vis = o3d.visualization.Visualizer()
+        vis.create_window(window_name=f"JRDF Visualizer - {name}", width=1024, height=768)
+        
+        # Add geometries
+        for geom in valid_geometries:
+            vis.add_geometry(geom)
+        
+        # Configure view
+        ctr = vis.get_view_control()
+        ctr.set_zoom(0.8)
+        
+        # Run visualization
+        vis.run()
+        vis.destroy_window()
+    except Exception as e:
+        print(f"Visualization error: {e}")
+        print("Please ensure Open3D is properly installed with GUI support.")
 
 
 def main(args: argparse.Namespace) -> None:

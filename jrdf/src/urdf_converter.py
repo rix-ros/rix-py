@@ -259,36 +259,3 @@ class URDFConverter:
         if urdf_joint.limit is not None:
             joint["limits"] = self._convert_limit(urdf_joint.limit)
         return joint
-
-
-if __name__ == "__main__":
-    import json
-    import os
-    import sys
-
-    HOME = os.path.expanduser("~")
-
-    if len(sys.argv) < 2:
-        print("Usage: python urdf_converter.py <urdf_file> [asset_dir]")
-        sys.exit(1)
-
-    urdf_file = sys.argv[1]
-    asset_dir = sys.argv[2] if len(sys.argv) > 2 else None
-
-    converter = URDFConverter()
-    try:
-        jrdf, assets = converter.convert(urdf_file, asset_dir)
-        print(json.dumps(jrdf, indent=4))
-        if assets:
-            assets_dir = os.path.join(".", jrdf["name"].lower(), "assets")
-            os.makedirs(assets_dir, exist_ok=True)
-            for src_file, dest_file in assets.items():
-                full_path = os.path.join(assets_dir, dest_file)
-                print(f"Copying asset {src_file} to {full_path}")
-                dir_name = os.path.dirname(full_path)
-                if dir_name:
-                    os.makedirs(dir_name, exist_ok=True)
-                os.system(f"cp {src_file} {full_path}")
-    except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)
