@@ -1,0 +1,7 @@
+numpy
+scipy
+pyinstaller
+jsonschema
+urdf_parser_py
+open3d
+jsonmacros

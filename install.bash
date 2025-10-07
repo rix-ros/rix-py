@@ -29,10 +29,16 @@ fi
 echo "Installing rix-py"
 source $HOME/.rix/venv/bin/activate
 
-pip install pyinstaller
+pip install -r requirements.txt
 
 # Create the executable
-python3 -m PyInstaller --clean --strip --optimize 2 --onedir --noupx --name rixtopic rixtopic/src/main.py
+python3 -m PyInstaller \
+    --onedir \
+    --strip \
+    --optimize 2 \
+    --noupx \
+    --name rixtopic \
+    rixtopic/src/main.py
 
 # Check if the executable was created
 if [ ! -f "dist/rixtopic/rixtopic" ]; then
@@ -46,6 +52,34 @@ cp -r dist/rixtopic "$HOME/.rix/"
 # Create symbolic link to rixtopic
 mkdir -p "$HOME/.rix/bin/"
 ln -sf "$HOME/.rix/rixtopic/rixtopic" "$HOME/.rix/bin/rixtopic"
+
+# Create the executable
+python3 -m PyInstaller \
+  --onedir \
+  --strip \
+  --optimize 2 \
+  --noupx \
+  --hidden-import jsonschema \
+  --hidden-import jsonmacros \
+  --hidden-import open3d \
+  --hidden-import collada \
+  --add-data "$(python3 -c 'import collada,os; print(os.path.join(os.path.dirname(collada.__file__), "resources") + ":collada/resources")')" \
+  --add-data "$(python3 -c 'import jsonmacros,os; print(os.path.join(os.path.dirname(jsonmacros.__file__), "json_macro_schema.json") + ":jsonmacros/")')" \
+  --name jrdf \
+  jrdf/src/main.py
+
+# Check if the executable was created
+if [ ! -f "dist/jrdf/jrdf" ]; then
+    echo "Error: jrdf executable not found in dist/jrdf/"
+    exit 1
+fi
+
+# Copy the required files
+cp -r dist/jrdf "$HOME/.rix/"
+
+# Create symbolic link to jrdf
+mkdir -p "$HOME/.rix/bin/"
+ln -sf "$HOME/.rix/jrdf/jrdf" "$HOME/.rix/bin/jrdf"
 
 # Clean up
 rm -rf build/ dist/
