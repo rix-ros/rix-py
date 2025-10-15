@@ -11,6 +11,9 @@ from rix.msg.mediator import SystemInfo
 import importlib
 import argparse
 import time
+import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
+import networkx as nx
 
 ROOT = os.getenv("HOME", "")
 USAGE = """rixinfo [-h] function [arg]
@@ -26,6 +29,7 @@ Functions:
     bw <topic>              - Print the bandwidth of a topic
   service
     list                    - List all active RIX services
+  graph                     - Display a runtime graph of the RIX environment
 """
 
 
@@ -299,6 +303,120 @@ def service(args: list[str]) -> None:
     return
 
 
+def graph(args: list[str]) -> None:
+    """Display a runtime graph of the current RIX environment."""
+    node = Node("rixinfo")
+    if not node.ok():
+        print("Error! Failed to initialize node.")
+        return
+
+    system_info = SystemInfo()
+    if not node.get_system_info(system_info):
+        print("Error! Failed to get system info.")
+        return
+
+    # Create a directed graph
+    G = nx.DiGraph()
+    
+    # Create mappings for unique identification
+    node_id_to_name = {}
+    
+    # Add nodes to the graph using their unique IDs
+    node_ids = []
+    for n in system_info.nodes:
+        node_id = f"node:{n.id}"
+        G.add_node(node_id, node_type='node', display_name=n.name)
+        node_ids.append(node_id)
+        node_id_to_name[n.id] = node_id
+    
+    # Add topics as nodes and connections
+    topic_names = []
+    for topic in system_info.topics:
+        topic_node_name = f"topic:{topic.name}"
+        G.add_node(topic_node_name, node_type='topic', display_name=topic.name)
+        topic_names.append(topic_node_name)
+    
+    # Add services as nodes
+    service_names = []
+    for service in system_info.services:
+        service_node_name = f"service:{service.name}"
+        G.add_node(service_node_name, node_type='service', display_name=service.name)
+        service_names.append(service_node_name)
+        
+        # Connect service to its hosting node using node ID
+        hosting_node_id = node_id_to_name.get(service.node_id)
+        if hosting_node_id:
+            G.add_edge(hosting_node_id, service_node_name)
+    
+    # Connect publishers to topics using node IDs
+    for pub in system_info.publishers:
+        pub_node_id = node_id_to_name.get(pub.node_id)
+        topic_node_name = f"topic:{pub.topic_info.name}"
+        if pub_node_id and topic_node_name in topic_names:
+            G.add_edge(pub_node_id, topic_node_name)
+    
+    # Connect topics to subscribers using node IDs
+    for sub in system_info.subscribers:
+        sub_node_id = node_id_to_name.get(sub.node_id)
+        topic_node_name = f"topic:{sub.topic_info.name}"
+        if sub_node_id and topic_node_name in topic_names:
+            G.add_edge(topic_node_name, sub_node_id)
+    
+    # Create the visualization
+    plt.figure(figsize=(10, 10))
+    pos = nx.spring_layout(G)
+    
+    # Draw different types of nodes with different colors and shapes
+    node_colors = []
+    node_sizes = []
+    
+    for n in G.nodes():
+        node_type = G.nodes[n].get('node_type', 'unknown')
+        if node_type == 'node':
+            node_colors.append('lightblue')
+            node_sizes.append(1200)
+        elif node_type == 'topic':
+            node_colors.append('lightgreen')
+            node_sizes.append(1000)
+        elif node_type == 'service':
+            node_colors.append('lightcoral')
+            node_sizes.append(800)
+        else:
+            node_colors.append('gray')
+            node_sizes.append(600)
+    
+    # Draw the graph with improved edge styling
+    nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=node_sizes, alpha=0.9, linewidths=2, edgecolors='black')
+    nx.draw_networkx_edges(G, pos, edge_color='darkgray', arrows=True, arrowsize=25, alpha=0.7, 
+                          arrowstyle='->', width=2, connectionstyle="arc3,rad=0.1")
+    
+    # Add labels using display names
+    labels = {}
+    for n in G.nodes():
+        display_name = G.nodes[n].get('display_name', n)
+        labels[n] = display_name
+    
+    nx.draw_networkx_labels(G, pos, labels, font_size=8, font_weight='bold')
+    
+    # Add legend
+    legend_elements = [
+        mlines.Line2D([0], [0], marker='o', color='w', markerfacecolor='lightblue', 
+                   markersize=10, label='Nodes'),
+        mlines.Line2D([0], [0], marker='o', color='w', markerfacecolor='lightgreen', 
+                   markersize=8, label='Topics'),
+        mlines.Line2D([0], [0], marker='o', color='w', markerfacecolor='lightcoral', 
+                   markersize=6, label='Services')
+    ]
+    plt.legend(handles=legend_elements, loc='upper right')
+    
+    plt.title("RIX Runtime Graph", size=16, weight='bold')
+    plt.axis('off')
+    plt.tight_layout()
+    
+    print("Displaying RIX runtime graph. Close the window to exit.")
+    plt.show()
+
+
 def main(args: argparse.Namespace) -> None:
     function = args.function
 
@@ -312,6 +430,10 @@ def main(args: argparse.Namespace) -> None:
 
     if function == "service":
         service(args.args)
+        return
+
+    if function == "graph":
+        graph(args.args)
         return
 
     print(f"Unknown function '{function}'. Use -h for help.")

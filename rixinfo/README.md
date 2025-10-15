@@ -14,6 +14,8 @@
   - Show the bandwidth (bytes/sec) used by a topic
 - **Service Introspection:**
   - List all active RIX services
+- **Runtime Graph Visualization**
+  - Display the current RIX runtime graph in a GUI window
 
 ## Usage
 
@@ -33,6 +35,7 @@ rixinfo [-h] function [arg]
   - `bw <topic>` — Print the bandwidth (bytes/sec) of `<topic>`
 - `service`
   - `list` — List all active RIX services
+- `graph` - Display the RIX runtime graph
 
 ## Requirements
 
