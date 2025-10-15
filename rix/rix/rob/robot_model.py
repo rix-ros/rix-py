@@ -10,6 +10,9 @@ from rix.rob.msg_util import (
 from rix.msg.geometry import TF, TransformStamped
 from rix.msg.sensor import JS
 from rix.msg.standard import Time
+import os
+
+HOME = os.path.expanduser("~")
 
 
 class RobotModel:
@@ -18,6 +21,10 @@ class RobotModel:
         self.joints: dict[str, Joint] = {}
         self.root: Link | None = None
         self.world_to_root: np.ndarray = np.eye(4)
+        self.from_json(filename)
+
+    def from_model(self, name: str) -> None:
+        filename = os.path.join(HOME, ".rix", "jrdf", "models", name, "model.json")
         self.from_json(filename)
 
     def from_json(self, filename: str) -> None:

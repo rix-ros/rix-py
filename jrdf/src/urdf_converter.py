@@ -27,8 +27,15 @@ class URDFConverter:
         # Convert robot name
         jrdf["name"] = robot.name if robot.name else "unnamed_robot"
 
+        # Gather global materials
+        materials: dict[str, urdf.Material] = {}
+        if robot.materials:
+            for mat in robot.materials:
+                if mat.name:
+                    materials[mat.name] = mat
+
         # Convert links
-        jrdf["links"] = [self._convert_link(link, assets) for link in robot.links]
+        jrdf["links"] = [self._convert_link(link, assets, materials) for link in robot.links]
 
         # Convert joints
         jrdf["joints"] = [self._convert_joint(joint) for joint in robot.joints]
@@ -63,8 +70,14 @@ class URDFConverter:
             raise ValueError(f"Unsupported asset path format: {urdf_asset}")
 
     def _convert_material(
-        self, urdf_material: urdf.Material, assets: dict[str, str]
+        self, urdf_material: urdf.Material, assets: dict[str, str], materials: dict[str, urdf.Material]
     ) -> dict[str, Any]:
+        if urdf_material.name:
+            if urdf_material.name in materials:
+                urdf_material = materials[urdf_material.name]
+            else:
+                raise ValueError(f"Material '{urdf_material.name}' not found in provided materials.")
+
         if urdf_material.color is None and urdf_material.texture is None:
             raise ValueError("Material must have either color or texture defined.")
         material: dict[str, Any] = {}
@@ -74,7 +87,7 @@ class URDFConverter:
             urdf_material.texture is not None
             and urdf_material.texture.filename is not None
         ):
-            material["filename"] = self._resolve_asset(
+            material["texture_filename"] = self._resolve_asset(
                 urdf_material.texture.filename, assets
             )
         return material
@@ -129,7 +142,7 @@ class URDFConverter:
         return inertial
 
     def _convert_visual(
-        self, urdf_visual: urdf.Visual, assets: dict[str, str]
+        self, urdf_visual: urdf.Visual, assets: dict[str, str], materials: dict[str, urdf.Material]
     ) -> dict[str, Any]:
         if urdf_visual.geometry is None:
             raise ValueError("Visual must have geometry defined.")
@@ -149,7 +162,7 @@ class URDFConverter:
         if urdf_visual.origin is not None:
             visual["origin"] = self._convert_origin(urdf_visual.origin)
         if urdf_visual.material is not None:
-            visual["material"] = self._convert_material(urdf_visual.material, assets)
+            visual["material"] = self._convert_material(urdf_visual.material, assets, materials)
         return visual
 
     def _convert_collision(
@@ -179,7 +192,7 @@ class URDFConverter:
         return collision
 
     def _convert_link(
-        self, urdf_link: urdf.Link, assets: dict[str, str]
+        self, urdf_link: urdf.Link, assets: dict[str, str], materials: dict[str, urdf.Material]
     ) -> dict[str, Any]:
         if urdf_link.name is None:
             raise ValueError("Link must have a name defined.")
@@ -188,7 +201,7 @@ class URDFConverter:
             link["inertial"] = self._convert_inertial(urdf_link.inertial)
         if urdf_link.visuals:
             link["visuals"] = [
-                self._convert_visual(v, assets)
+                self._convert_visual(v, assets, materials)
                 for v in urdf_link.visuals
                 if v is not None
             ]
