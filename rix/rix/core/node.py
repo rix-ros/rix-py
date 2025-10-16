@@ -24,7 +24,7 @@ from rix.core.publisher import Publisher
 from rix.core.service import Service
 from rix.core.service_client import ServiceClient
 from rix.core.subscriber import Subscriber
-from rix.core.timer import Timer
+from rix.core.timer_callback import TimerCallback
 
 TMsg = TypeVar("TMsg", bound=Message)
 TRequest = TypeVar("TRequest", bound=Message)
@@ -32,19 +32,28 @@ TResponse = TypeVar("TResponse", bound=Message)
 
 
 class Node(Spinner):
-    def __init__(
-        self,
-        name: str,
-        rixhub_endpoint: Tuple[str, int] = (RIXHUB_IP, RIXHUB_PORT),
-    ):
+    def __init__(self, name: str, endpoint: Tuple[str, int] = (DEFAULT_IP, 0)):
         self.info = NodeInfo()
         self.info.id = Node.__generateID()
         self.info.machine_id = Node.__getMachineID()
         self.info.name = name
-        self.rixhub_endpoint = rixhub_endpoint
+        self.rixhub_endpoint = (RIXHUB_IP, RIXHUB_PORT)
         self.shutdown_flag = True
         self.registered_flag = False
         self.components: set[Spinner] = set()
+
+        self.server = Socket()
+
+        if not self.server.set_reuse_address(True):
+            return
+        if not self.server.bind((endpoint[0], endpoint[1])):
+            return
+        if not self.server.listen(32):
+            return
+        
+        server_endpoint = self.server.local_endpoint()
+        self.info.endpoint.address = server_endpoint[0]
+        self.info.endpoint.port = server_endpoint[1]
 
         client = Socket()
         if not client.connect(self.rixhub_endpoint):
@@ -60,6 +69,26 @@ class Node(Spinner):
             return
         if status.error != 0:
             return
+        
+        def handle_accept(event: TimerCallback.Event) -> None:
+            if not self.server.is_readable():
+                return
+
+            conn, _ = self.server.accept()
+            if conn is None:
+                return
+            
+            op = Operation()
+            if not conn.recv_message(op, op.size()):
+                return
+            
+            if (op.opcode == OPCODE.PING):
+                status = Status()
+                status.error = 0
+                status.id = self.info.id
+                conn.send_message(OPCODE.STATUS_RESPONSE, status)
+
+        self.create_timer(0.5, handle_accept)
 
         self.registered_flag = True
         self.shutdown_flag = False
@@ -165,9 +194,9 @@ class Node(Spinner):
         return ServiceClient(request, self.rixhub_endpoint)
 
     def create_timer(
-        self, duration: float, callback: Callable[[Timer.Event], None]
-    ) -> Timer:
-        timer = Timer(duration, callback)
+        self, duration: float, callback: Callable[[TimerCallback.Event], None]
+    ) -> TimerCallback:
+        timer = TimerCallback(duration, callback)
         self.components.add(timer)
         return timer
 

@@ -3,7 +3,7 @@ from typing import Callable
 from rix.core.spinner import Spinner
 
 
-class Timer(Spinner):
+class TimerCallback(Spinner):
     class Event:
         def __init__(self):
             self.current_real: int = 0
@@ -21,7 +21,7 @@ class Timer(Spinner):
         self._callback = callback
         self._shutdown_flag = False
         now = time.time_ns()
-        self._event = Timer.Event()
+        self._event = TimerCallback.Event()
         self._event.current_real = now
         self._event.current_expected = 0
         self._event.last_real = 0

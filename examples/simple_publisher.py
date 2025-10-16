@@ -1,4 +1,4 @@
-from rix.core import Node, Timer
+from rix.core import Node, TimerCallback
 from rix.msg.standard import Header
 
 from time import time_ns
@@ -15,7 +15,7 @@ def main():
         print("Error! Failed to create publisher.")
         return
 
-    def timer_callback(event: Timer.Event):
+    def timer_callback(event: TimerCallback.Event):
         msg = Header()
         current_time = time_ns()
         msg.frame_id = "test"
