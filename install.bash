@@ -37,21 +37,21 @@ python3 -m PyInstaller \
     --strip \
     --optimize 2 \
     --noupx \
-    --name rixtopic \
-    rixtopic/src/main.py
+    --name rixinfo \
+    rixinfo/src/main.py
 
 # Check if the executable was created
-if [ ! -f "dist/rixtopic/rixtopic" ]; then
-    echo "Error: rixtopic executable not found in dist/rixtopic/"
+if [ ! -f "dist/rixinfo/rixinfo" ]; then
+    echo "Error: rixinfo executable not found in dist/rixinfo/"
     exit 1
 fi
 
 # Copy the required files
-cp -r dist/rixtopic "$HOME/.rix/"
+cp -r dist/rixinfo "$HOME/.rix/"
 
-# Create symbolic link to rixtopic
+# Create symbolic link to rixinfo
 mkdir -p "$HOME/.rix/bin/"
-ln -sf "$HOME/.rix/rixtopic/rixtopic" "$HOME/.rix/bin/rixtopic"
+ln -sf "$HOME/.rix/rixinfo/rixinfo" "$HOME/.rix/bin/rixinfo"
 
 # Create the executable
 python3 -m PyInstaller \

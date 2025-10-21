@@ -3,14 +3,14 @@ import numpy as np
 import argparse
 from threading import Lock
 
-from rix.core import Node, Timer
+from rix.core import Node, TimerCallback
 from rix.msg.sensor import CompressedImage
 
 frame = None
 frame_mutex = Lock()
 
 
-def storeFrame(msg: CompressedImage) -> None:
+def store_frame(msg: CompressedImage) -> None:
     global frame
     with frame_mutex:
         arr = np.array(msg.data, dtype=np.uint8)
@@ -26,12 +26,12 @@ def main():
         print("Error! Failed to create node.")
         return
 
-    sub = node.create_subscriber(CompressedImage, "/video", storeFrame)
+    sub = node.create_subscriber(CompressedImage, "/video", store_frame)
     if not sub.ok():
         print("Error! Failed to create subscriber.")
         return
 
-    def timer_callback(event: Timer.Event) -> None:
+    def timer_callback(event: TimerCallback.Event) -> None:
         frame_mutex.acquire()
         if frame is not None:
             cv2.imshow("/video", frame)

@@ -1,7 +1,7 @@
 import cv2
 import argparse
 
-from rix.core import Node, Timer
+from rix.core import Node, TimerCallback
 from rix.msg.sensor import CompressedImage
 
 
@@ -21,7 +21,7 @@ def main(args: argparse.Namespace):
     cam = cv2.VideoCapture(camIndex)
     msg = CompressedImage()
 
-    def timer_callback(event: Timer.Event):
+    def timer_callback(event: TimerCallback.Event):
         ret, frame = cam.read()
         if not ret:
             print("Error! Failed to read frame.")

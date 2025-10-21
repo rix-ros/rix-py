@@ -7,6 +7,7 @@ DEFAULT_IP = environ.get("RIX_DEFAULT_IP", "127.0.0.1")
 
 class OPCODE(IntEnum):
     STATUS_RESPONSE = 0
+    PING = 1
 
     NODE_REGISTER = 80
     SUB_REGISTER = 81

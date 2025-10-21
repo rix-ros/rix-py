@@ -1,4 +1,4 @@
-from rix.core import Node, Timer
+from rix.core import Node, TimerCallback
 from rix.msg.standard import String, UInt32
 
 
@@ -15,7 +15,7 @@ def main():
 
     i: int = 0
 
-    def timer_callback(event: Timer.Event) -> None:
+    def timer_callback(event: TimerCallback.Event) -> None:
         nonlocal i
         req = UInt32()
         req.data = i
