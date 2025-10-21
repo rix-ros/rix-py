@@ -6,14 +6,17 @@ rix_path = os.path.expanduser("~/.rix/python/rix")
 sys.path.append(rix_path)
 
 from rix.core import Node
-from rix.msg.mediator import SystemInfo
+from rix.core.socket import Socket
+from rix.core.common import OPCODE
+from rix.msg.mediator import SystemInfo, Status, Operation
+from rix.msg.standard import Void
 
 import importlib
 import argparse
 import time
 
 ROOT = os.getenv("HOME", "")
-os.environ['MPLCONFIGDIR'] = os.path.join(ROOT, ".rix", "rixinfo", ".matplotlib")
+os.environ["MPLCONFIGDIR"] = os.path.join(ROOT, ".rix", "rixinfo", ".matplotlib")
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import networkx as nx
@@ -24,6 +27,7 @@ Functions:
   node
     list                    - List all active RIX nodes
     info <node>             - Print information about a node
+    ping <node>             - Ping a node
   topic
     list                    - List all active RIX topics
     echo <topic>            - Print the messages of a topic
@@ -41,8 +45,8 @@ def hash_to_str(hash: list[int]) -> str:
 
 def node(args: list[str]) -> None:
     function = args[0] if len(args) > 0 else None
-    if function not in ["list", "info"]:
-        print("Error! node function must be one of: list, info")
+    if function not in ["list", "info", "ping"]:
+        print("Error! node function must be one of: list, info, ping")
         return
 
     node = Node("rixinfo")
@@ -98,6 +102,44 @@ def node(args: list[str]) -> None:
             for service in services:
                 print(f"    {service}")
 
+        return
+
+    if function == "ping":
+        arg = args[1] if len(args) > 1 else None
+        if not arg:
+            print("Error! 'ping' requires a node name as an argument.")
+            return
+        node_name = arg
+        node_info = next((n for n in system_info.nodes if n.name == node_name), None)
+        if not node_info:
+            print(f"Node '{node_name}' not found.")
+            return
+        print(f"Pinging node '{node_name}'...")
+        endpoint = (node_info.endpoint.address, node_info.endpoint.port)
+
+        client = Socket()
+        if not client.connect(endpoint):
+            print(f"Error! Failed to connect to node '{node_name}' at {endpoint}.")
+            return
+
+        msg = Void()
+        if not client.send_message(OPCODE.PING, msg):
+            print(f"Error! Failed to send ping to node '{node_name}'.")
+            return
+
+        status = Status()
+        op = Operation()
+        if not client.recv_message_with_opcode(op, status):
+            print(f"Error! Failed to receive ping response from node '{node_name}'.")
+            return
+
+        if op.opcode != OPCODE.STATUS_RESPONSE:
+            print(
+                f"Error! Unexpected response opcode {op.opcode} from node '{node_name}'."
+            )
+            return
+
+        print(f"Node '{node_name}' is alive. Status: {status.error}")
         return
 
 
