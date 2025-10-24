@@ -1,22 +1,19 @@
-import threading
 from typing import Tuple
 
-from rix.core.common import (
-    OPCODE,
-)
+from rix.core.common import OPCODE
 from rix.core.socket import Socket
 from rix.msg.message import Message
 from rix.msg.mediator.PubInfo import PubInfo
 from rix.msg.mediator.Status import Status
 from rix.msg.mediator.Operation import Operation
-from rix.msg.standard.UInt32 import UInt32
 from rix.core.spinner import Spinner
+
 
 class Publisher(Spinner):
     def __init__(
         self,
         info: PubInfo,
-        rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", 0),
+        rixhub_endpoint: Tuple[str, int],
     ):
         self.shutdown_flag = True
         self.registered_flag = False
@@ -29,19 +26,18 @@ class Publisher(Spinner):
             return
         if not self.server.listen(32):
             return
-        
+
         server_endpoint = self.server.local_endpoint()
         info.endpoint.address = server_endpoint[0]
         info.endpoint.port = server_endpoint[1]
 
         self.connections: set[Socket] = set()
-        self.connections_mutex = threading.Lock()
         self.rixhub_endpoint = rixhub_endpoint
 
         client = Socket()
         if not client.connect(self.rixhub_endpoint):
             return
-        
+
         if not client.send_message(OPCODE.PUB_REGISTER, self.info):
             return
 
@@ -53,15 +49,15 @@ class Publisher(Spinner):
             return
         if status.error != 0:
             return
-        
+
         self.shutdown_flag = False
         self.registered_flag = True
 
     def __del__(self):
         if self.registered_flag:
-          client = Socket()
-          if client.connect(self.rixhub_endpoint):
-              client.send_message(OPCODE.PUB_DEREGISTER, self.info)
+            client = Socket()
+            if client.connect(self.rixhub_endpoint):
+                client.send_message(OPCODE.PUB_DEREGISTER, self.info)
 
     def ok(self) -> bool:
         return not self.shutdown_flag
@@ -72,19 +68,20 @@ class Publisher(Spinner):
             return
 
         to_remove: list[Socket] = []
-        with self.connections_mutex:
-            for conn in self.connections:
-                if not conn.send_message(OPCODE.PUB_MESSAGE, msg):
-                    to_remove.append(conn)
+        for conn in self.connections:
+            if not conn.send_message(OPCODE.PUB_MESSAGE, msg):
+                to_remove.append(conn)
 
-            for conn in to_remove:
-                self.connections.remove(conn)
+        for conn in to_remove:
+            self.connections.remove(conn)
 
     def shutdown(self) -> None:
         self.shutdown_flag = True
 
     def spin_once(self) -> None:
-        if self.server.is_readable():
-            conn, _ = self.server.accept()
-            with self.connections_mutex:
-                self.connections.add(conn)
+        if not self.server.is_readable():
+            return
+        conn, _ = self.server.accept()
+        if conn is None:
+            return
+        self.connections.add(conn)

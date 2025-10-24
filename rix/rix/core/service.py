@@ -1,14 +1,8 @@
-import threading
-import socket
-import select
 from typing import Tuple, Callable
 
-from rix.core.common import (
-    OPCODE,
-)
+from rix.core.common import OPCODE
 from rix.core.socket import Socket
 from rix.msg.message import Message
-from rix.msg.standard.UInt32 import UInt32
 from rix.msg.mediator.SrvInfo import SrvInfo
 from rix.msg.mediator.Status import Status
 from rix.msg.mediator.Operation import Operation
@@ -16,11 +10,7 @@ from rix.core.spinner import Spinner
 
 
 class Service(Spinner):
-    def __init__(
-        self,
-        info: SrvInfo,
-        rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", 0),
-    ):
+    def __init__(self, info: SrvInfo, rixhub_endpoint: Tuple[str, int]):
         self.shutdown_flag = True
         self.registered_flag = False
         self.info = info
@@ -40,7 +30,6 @@ class Service(Spinner):
         info.endpoint.port = server_endpoint[1]
 
         self.callback = None
-        self.callback_mutex = threading.Lock()
         self.rixhub_endpoint = rixhub_endpoint
 
         client = Socket()
@@ -96,24 +85,21 @@ class Service(Spinner):
         if conn is None:
             return
 
-        with self.callback_mutex:
-            if (
-                self.callback is None
-                or self.request_instance is None
-                or self.response_instance is None
-            ):
-                return
-            op = Operation()
-            if not conn.recv_message_with_opcode(op, self.request_instance):
-                return
+        if (
+            self.callback is None
+            or self.request_instance is None
+            or self.response_instance is None
+        ):
+            return
+        op = Operation()
+        if not conn.recv_message_with_opcode(op, self.request_instance):
+            return
 
-            if op.opcode != OPCODE.SRV_REQUEST_MESSAGE:
-                return
+        if op.opcode != OPCODE.SRV_REQUEST_MESSAGE:
+            return
 
-            self.callback(self.request_instance, self.response_instance)
-            if not conn.send_message(
-                OPCODE.SRV_RESPONSE_MESSAGE, self.response_instance
-            ):
-                return
+        self.callback(self.request_instance, self.response_instance)
+        if not conn.send_message(OPCODE.SRV_RESPONSE_MESSAGE, self.response_instance):
+            return
 
-            conn.close()
+        conn.close()
