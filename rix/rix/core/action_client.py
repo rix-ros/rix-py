@@ -1,8 +1,6 @@
 from typing import Tuple, Callable
 
-from rix.core.common import (
-    OPCODE,
-)
+from rix.core.common import OPCODE
 from rix.core.socket import Socket
 from rix.msg.message import Message
 from rix.msg.standard import Void
@@ -11,11 +9,7 @@ from rix.core.spinner import Spinner
 
 
 class ActionClient(Spinner):
-    def __init__(
-        self,
-        request: ActRequest,
-        rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", 0),
-    ):
+    def __init__(self, request: ActRequest, rixhub_endpoint: Tuple[str, int]):
         self.shutdown_flag = True
         self.request = request
         self.endpoint: Tuple[str, int] = ("", 0)
@@ -64,6 +58,8 @@ class ActionClient(Spinner):
         TFeedback: Callable[[], Message],
         callback: Callable[[Message], None],
     ) -> None:
+        if TFeedback().hash() != self.request.feedback_hash:
+            return
         self.feedback_instance = TFeedback()
         self.feedback_callback = callback
 
@@ -72,10 +68,15 @@ class ActionClient(Spinner):
         TResult: Callable[[], Message],
         callback: Callable[[Message], None],
     ) -> None:
+        if TResult().hash() != self.request.result_hash:
+            return
         self.result_instance = TResult()
         self.result_callback = callback
 
     def dispatch(self, goal: Message) -> bool:
+        if goal.hash() != self.request.goal_hash:
+            return False
+
         opcode = OPCODE.ACT_PREEMPT_MESSAGE
         if self.client is None:
             opcode = OPCODE.ACT_GOAL_MESSAGE

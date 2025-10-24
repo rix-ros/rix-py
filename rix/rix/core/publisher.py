@@ -1,8 +1,6 @@
 from typing import Tuple
 
-from rix.core.common import (
-    OPCODE,
-)
+from rix.core.common import OPCODE
 from rix.core.socket import Socket
 from rix.msg.message import Message
 from rix.msg.mediator.PubInfo import PubInfo
@@ -10,11 +8,12 @@ from rix.msg.mediator.Status import Status
 from rix.msg.mediator.Operation import Operation
 from rix.core.spinner import Spinner
 
+
 class Publisher(Spinner):
     def __init__(
         self,
         info: PubInfo,
-        rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", 0),
+        rixhub_endpoint: Tuple[str, int],
     ):
         self.shutdown_flag = True
         self.registered_flag = False
@@ -27,7 +26,7 @@ class Publisher(Spinner):
             return
         if not self.server.listen(32):
             return
-        
+
         server_endpoint = self.server.local_endpoint()
         info.endpoint.address = server_endpoint[0]
         info.endpoint.port = server_endpoint[1]
@@ -38,7 +37,7 @@ class Publisher(Spinner):
         client = Socket()
         if not client.connect(self.rixhub_endpoint):
             return
-        
+
         if not client.send_message(OPCODE.PUB_REGISTER, self.info):
             return
 
@@ -50,15 +49,15 @@ class Publisher(Spinner):
             return
         if status.error != 0:
             return
-        
+
         self.shutdown_flag = False
         self.registered_flag = True
 
     def __del__(self):
         if self.registered_flag:
-          client = Socket()
-          if client.connect(self.rixhub_endpoint):
-              client.send_message(OPCODE.PUB_DEREGISTER, self.info)
+            client = Socket()
+            if client.connect(self.rixhub_endpoint):
+                client.send_message(OPCODE.PUB_DEREGISTER, self.info)
 
     def ok(self) -> bool:
         return not self.shutdown_flag

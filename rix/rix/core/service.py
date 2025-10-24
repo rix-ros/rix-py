@@ -1,8 +1,6 @@
 from typing import Tuple, Callable
 
-from rix.core.common import (
-    OPCODE,
-)
+from rix.core.common import OPCODE
 from rix.core.socket import Socket
 from rix.msg.message import Message
 from rix.msg.mediator.SrvInfo import SrvInfo
@@ -12,11 +10,7 @@ from rix.core.spinner import Spinner
 
 
 class Service(Spinner):
-    def __init__(
-        self,
-        info: SrvInfo,
-        rixhub_endpoint: Tuple[str, int] = ("127.0.0.1", 0),
-    ):
+    def __init__(self, info: SrvInfo, rixhub_endpoint: Tuple[str, int]):
         self.shutdown_flag = True
         self.registered_flag = False
         self.info = info
