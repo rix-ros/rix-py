@@ -1,26 +1,19 @@
-import threading
 from typing import Tuple, Callable
 
 from rix.core.common import (
     OPCODE,
 )
 from rix.core.socket import Socket
-from rix.msg.standard.UInt32 import UInt32
 from rix.msg.mediator.Operation import Operation
 from rix.msg.mediator.Status import Status
 from rix.msg.mediator.SubInfo import SubInfo
-from rix.msg.mediator.PubInfo import PubInfo
 from rix.msg.mediator.SubNotify import SubNotify
 from rix.core.spinner import Spinner
 from rix.msg.message import Message
 
 
 class Subscriber(Spinner):
-    def __init__(
-        self,
-        info: SubInfo,
-        rixhub_endpoint: Tuple[str, int]
-    ):
+    def __init__(self, info: SubInfo, rixhub_endpoint: Tuple[str, int]):
         self.shutdown_flag = True
         self.registered_flag = False
         self.info = info
@@ -31,24 +24,23 @@ class Subscriber(Spinner):
             return
         if not self.server.listen(32):
             return
-        
+
         server_endpoint = self.server.local_endpoint()
         info.endpoint.address = server_endpoint[0]
         info.endpoint.port = server_endpoint[1]
 
         self.clients: set[Socket] = set()
         self.callback = None
-        self.callback_mutex = threading.Lock()
         self.rixhub_endpoint = rixhub_endpoint
         self.message_instance: Message | None = None
 
         client = Socket()
         if not client.connect(self.rixhub_endpoint):
             return
-        
+
         if not client.send_message(OPCODE.SUB_REGISTER, self.info):
             return
-        
+
         op = Operation()
         status = Status()
         if not client.recv_message_with_opcode(op, status):
@@ -57,16 +49,15 @@ class Subscriber(Spinner):
             return
         if status.error != 0:
             return
-        
+
         self.shutdown_flag = False
         self.registered_flag = True
 
-
     def __del__(self):
         if self.registered_flag:
-          client = Socket()
-          if client.connect(self.rixhub_endpoint):
-              client.send_message(OPCODE.SUB_DEREGISTER, self.info)
+            client = Socket()
+            if client.connect(self.rixhub_endpoint):
+                client.send_message(OPCODE.SUB_DEREGISTER, self.info)
 
     def ok(self) -> bool:
         return not self.shutdown_flag
@@ -94,7 +85,7 @@ class Subscriber(Spinner):
             if not conn.recv_message_with_opcode(op, sub_notify):
                 conn.close()
                 return
-            
+
             if op.opcode != OPCODE.SUB_NOTIFY:
                 conn.close()
                 return
@@ -107,25 +98,24 @@ class Subscriber(Spinner):
                 self.clients.add(client)
 
         if self.callback is not None and self.message_instance is not None:
-            with self.callback_mutex:
-                # Check all clients for incoming messages
-                to_remove: list[Socket] = []
-                for client in self.clients:
-                    if client.is_exception():
+            # Check all clients for incoming messages
+            to_remove: list[Socket] = []
+            for client in self.clients:
+                if client.is_exception():
+                    to_remove.append(client)
+                    continue
+
+                if client.is_readable():
+                    op = Operation()
+                    if not client.recv_message_with_opcode(op, self.message_instance):
                         to_remove.append(client)
                         continue
-                    
-                    if client.is_readable():
-                        op = Operation()
-                        if not client.recv_message_with_opcode(op, self.message_instance):
-                            to_remove.append(client)
-                            continue
 
-                        if op.opcode != OPCODE.PUB_MESSAGE:
-                            to_remove.append(client)
-                            continue
-                    
-                        self.callback(self.message_instance)
+                    if op.opcode != OPCODE.PUB_MESSAGE:
+                        to_remove.append(client)
+                        continue
 
-                for client in to_remove:
-                    self.clients.remove(client)
+                    self.callback(self.message_instance)
+
+            for client in to_remove:
+                self.clients.remove(client)

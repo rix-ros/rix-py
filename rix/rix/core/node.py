@@ -10,32 +10,40 @@ from rix.core.common import (
     OPCODE,
 )
 from rix.core.spinner import Spinner
-from rix.msg.mediator.NodeInfo import NodeInfo
-from rix.msg.mediator.ParamInfo import ParamInfo
-from rix.msg.mediator.PubInfo import PubInfo
-from rix.msg.mediator.SrvInfo import SrvInfo
-from rix.msg.mediator.SrvRequest import SrvRequest
-from rix.msg.mediator.SubInfo import SubInfo
-from rix.msg.mediator.SystemInfo import SystemInfo
-from rix.msg.mediator.Operation import Operation
+from rix.msg.mediator import (
+    NodeInfo,
+    ParamInfo,
+    PubInfo,
+    SrvInfo,
+    SrvRequest,
+    ActInfo,
+    ActRequest,
+    SubInfo,
+    SystemInfo,
+    Operation,
+    Status,
+)
 from rix.msg.standard.UInt64 import UInt64
-from rix.msg.mediator.Status import Status
 from rix.core.publisher import Publisher
 from rix.core.service import Service
 from rix.core.service_client import ServiceClient
 from rix.core.subscriber import Subscriber
 from rix.core.timer_callback import TimerCallback
+from rix.core.action import Action
+from rix.core.action_client import ActionClient
 
 TMsg = TypeVar("TMsg", bound=Message)
 TRequest = TypeVar("TRequest", bound=Message)
 TResponse = TypeVar("TResponse", bound=Message)
+TGoal = TypeVar("TGoal", bound=Message)
+TFeedback = TypeVar("TFeedback", bound=Message)
+TResult = TypeVar("TResult", bound=Message)
 
 
 class Node(Spinner):
     def __init__(self, name: str, endpoint: Tuple[str, int] = (DEFAULT_IP, 0)):
         self.info = NodeInfo()
-        self.info.id = Node.__generateID()
-        self.info.machine_id = Node.__getMachineID()
+        self.info.id = Node.__generate_id()
         self.info.name = name
         self.rixhub_endpoint = (RIXHUB_IP, RIXHUB_PORT)
         self.shutdown_flag = True
@@ -50,7 +58,7 @@ class Node(Spinner):
             return
         if not self.server.listen(32):
             return
-        
+
         server_endpoint = self.server.local_endpoint()
         self.info.endpoint.address = server_endpoint[0]
         self.info.endpoint.port = server_endpoint[1]
@@ -69,7 +77,7 @@ class Node(Spinner):
             return
         if status.error != 0:
             return
-        
+
         def handle_accept(event: TimerCallback.Event) -> None:
             if not self.server.is_readable():
                 return
@@ -77,12 +85,12 @@ class Node(Spinner):
             conn, _ = self.server.accept()
             if conn is None:
                 return
-            
+
             op = Operation()
             if not conn.recv_message(op, op.size()):
                 return
-            
-            if (op.opcode == OPCODE.PING):
+
+            if op.opcode == OPCODE.PING:
                 status = Status()
                 status.error = 0
                 status.id = self.info.id
@@ -126,7 +134,7 @@ class Node(Spinner):
         endpoint: Tuple[str, int] = (DEFAULT_IP, 0),
     ) -> Publisher:
         info = PubInfo()
-        info.id = Node.__generateID()
+        info.id = Node.__generate_id()
         info.node_id = self.info.id
         info.topic_info.name = topic
         info.topic_info.message_hash = TMsg().hash()
@@ -145,7 +153,7 @@ class Node(Spinner):
         endpoint: Tuple[str, int] = (DEFAULT_IP, 0),
     ) -> Subscriber:
         info = SubInfo()
-        info.id = Node.__generateID()
+        info.id = Node.__generate_id()
         info.node_id = self.info.id
         info.topic_info.name = topic
         info.topic_info.message_hash = TMsg().hash()
@@ -166,7 +174,7 @@ class Node(Spinner):
         endpoint: Tuple[str, int] = (DEFAULT_IP, 0),
     ) -> Service:
         info = SrvInfo()
-        info.id = Node.__generateID()
+        info.id = Node.__generate_id()
         info.node_id = self.info.id
         info.name = service
         info.request_hash = TRequest().hash()
@@ -191,7 +199,9 @@ class Node(Spinner):
         request.request_hash = TRequest().hash()
         request.response_hash = TResponse().hash()
 
-        return ServiceClient(request, self.rixhub_endpoint)
+        srvcli = ServiceClient(request, self.rixhub_endpoint)
+        self.components.add(srvcli)
+        return srvcli
 
     def create_timer(
         self, duration: float, callback: Callable[[TimerCallback.Event], None]
@@ -199,6 +209,48 @@ class Node(Spinner):
         timer = TimerCallback(duration, callback)
         self.components.add(timer)
         return timer
+
+    def create_action(
+        self,
+        TGoal: Callable[[], Message],
+        TFeedback: Callable[[], Message],
+        TResult: Callable[[], Message],
+        action: str,
+        callback: Callable[[TGoal, TFeedback, TResult], bool],
+        endpoint: Tuple[str, int] = (DEFAULT_IP, 0),
+    ) -> Action:
+        info = ActInfo()
+        info.id = Node.__generate_id()
+        info.node_id = self.info.id
+        info.name = action
+        info.goal_hash = TGoal().hash()
+        info.feedback_hash = TFeedback().hash()
+        info.result_hash = TResult().hash()
+        info.endpoint.address = endpoint[0]
+        info.endpoint.port = endpoint[1]
+
+        act = Action(info, self.rixhub_endpoint)
+        act.set_callback(TGoal, TFeedback, TResult, callback)
+        self.components.add(act)
+        return act
+
+    def create_action_client(
+        self,
+        TGoal: Callable[[], Message],
+        TFeedback: Callable[[], Message],
+        TResult: Callable[[], Message],
+        action: str,
+    ) -> ActionClient:
+        request = ActRequest()
+        request.name = action
+        request.node_id = self.info.id
+        request.goal_hash = TGoal().hash()
+        request.feedback_hash = TFeedback().hash()
+        request.result_hash = TResult().hash()
+
+        actcli = ActionClient(request, self.rixhub_endpoint)
+        self.components.add(actcli)
+        return actcli
 
     def set_parameter(self, name: str, parameter: Message) -> bool:
         info = ParamInfo()
@@ -270,9 +322,5 @@ class Node(Spinner):
         return True
 
     @staticmethod
-    def __getMachineID() -> int:
-        return 0
-
-    @staticmethod
-    def __generateID() -> int:
+    def __generate_id() -> int:
         return random.getrandbits(64)

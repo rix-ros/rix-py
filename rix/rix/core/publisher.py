@@ -1,4 +1,3 @@
-import threading
 from typing import Tuple
 
 from rix.core.common import (
@@ -9,7 +8,6 @@ from rix.msg.message import Message
 from rix.msg.mediator.PubInfo import PubInfo
 from rix.msg.mediator.Status import Status
 from rix.msg.mediator.Operation import Operation
-from rix.msg.standard.UInt32 import UInt32
 from rix.core.spinner import Spinner
 
 class Publisher(Spinner):
@@ -35,7 +33,6 @@ class Publisher(Spinner):
         info.endpoint.port = server_endpoint[1]
 
         self.connections: set[Socket] = set()
-        self.connections_mutex = threading.Lock()
         self.rixhub_endpoint = rixhub_endpoint
 
         client = Socket()
@@ -72,19 +69,20 @@ class Publisher(Spinner):
             return
 
         to_remove: list[Socket] = []
-        with self.connections_mutex:
-            for conn in self.connections:
-                if not conn.send_message(OPCODE.PUB_MESSAGE, msg):
-                    to_remove.append(conn)
+        for conn in self.connections:
+            if not conn.send_message(OPCODE.PUB_MESSAGE, msg):
+                to_remove.append(conn)
 
-            for conn in to_remove:
-                self.connections.remove(conn)
+        for conn in to_remove:
+            self.connections.remove(conn)
 
     def shutdown(self) -> None:
         self.shutdown_flag = True
 
     def spin_once(self) -> None:
-        if self.server.is_readable():
-            conn, _ = self.server.accept()
-            with self.connections_mutex:
-                self.connections.add(conn)
+        if not self.server.is_readable():
+            return
+        conn, _ = self.server.accept()
+        if conn is None:
+            return
+        self.connections.add(conn)

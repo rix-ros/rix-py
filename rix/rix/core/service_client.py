@@ -1,4 +1,3 @@
-import threading
 from typing import Tuple
 
 from rix.core.common import (
@@ -6,13 +5,13 @@ from rix.core.common import (
 )
 from rix.core.socket import Socket
 from rix.msg.message import Message
-from rix.msg.standard.UInt32 import UInt32
 from rix.msg.mediator.SrvRequest import SrvRequest
 from rix.msg.mediator.SrvResponse import SrvResponse
 from rix.msg.mediator.Operation import Operation
+from rix.core.spinner import Spinner
 
 
-class ServiceClient:
+class ServiceClient(Spinner):
     def __init__(
         self,
         request: SrvRequest,
@@ -20,7 +19,6 @@ class ServiceClient:
     ):
         self.shutdown_flag = True
         self.request = request
-        self.callback_mutex = threading.Lock()
         self.endpoint: Tuple[str, int] = ("", 0)
 
         client = Socket()
@@ -29,12 +27,12 @@ class ServiceClient:
 
         if not client.send_message(OPCODE.SRV_REQUEST, self.request):
             return
-        
+
         op = Operation()
         response = SrvResponse()
         if not client.recv_message_with_opcode(op, response):
             return
-        
+
         if op.opcode != OPCODE.SRV_RESPONSE:
             return
 
@@ -67,8 +65,11 @@ class ServiceClient:
         op = Operation()
         if not client.recv_message_with_opcode(op, response):
             return False
-        
+
         if op.opcode != OPCODE.SRV_RESPONSE_MESSAGE:
             return False
-        
+
         return True
+
+    def spin_once(self) -> None:
+        pass

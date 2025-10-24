@@ -165,3 +165,17 @@ class Socket:
            return False
        # Then read the message body
        return self.recv_message(msg, op.len)
+    
+    def ignore_message(self, len: int) -> bool:
+        # Read and discard the message body
+        buffer = bytearray(len)
+        total_received: int = 0
+        try:
+            while total_received < len:
+                read = self._recv(buffer, total_received)
+                if read == -1:
+                    return False
+                total_received += read
+            return True
+        except Exception as _:
+            return False
