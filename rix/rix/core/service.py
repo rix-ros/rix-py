@@ -2,11 +2,9 @@ from typing import Tuple, Callable
 
 from rix.core.common import OPCODE
 from rix.core.socket import Socket
-from rix.msg.message import Message
-from rix.msg.mediator.SrvInfo import SrvInfo
-from rix.msg.mediator.Status import Status
-from rix.msg.mediator.Operation import Operation
 from rix.core.spinner import Spinner
+from rix.msg import Message
+from rix.sys_msgs import SrvInfo, Status, Operation
 
 
 class Service(Spinner):

@@ -4,7 +4,7 @@ from rix.rob.msg_util import (
     interpolate_transform,
     transform_to_matrix,
 )
-from rix.msg.geometry import TF, TransformStamped
+from rix.geometry_msgs import TF, TransformStamped
 
 class TransformBuffer:
     def __init__(self, duration: float = 0.1):

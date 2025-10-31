@@ -2,7 +2,7 @@ import cv2
 import argparse
 
 from rix.core import Node, TimerCallback
-from rix.msg.sensor import CompressedImage
+from rix.sensor_msgs import CompressedImage
 
 
 def main(args: argparse.Namespace):

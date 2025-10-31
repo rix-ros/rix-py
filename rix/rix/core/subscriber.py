@@ -2,12 +2,9 @@ from typing import Tuple, Callable
 
 from rix.core.common import OPCODE
 from rix.core.socket import Socket
-from rix.msg.mediator.Operation import Operation
-from rix.msg.mediator.Status import Status
-from rix.msg.mediator.SubInfo import SubInfo
-from rix.msg.mediator.SubNotify import SubNotify
 from rix.core.spinner import Spinner
-from rix.msg.message import Message
+from rix.msg import Message
+from rix.sys_msgs import Operation, Status, SubInfo, SubNotify
 
 
 class Subscriber(Spinner):

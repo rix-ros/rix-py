@@ -2,10 +2,10 @@ from typing import Tuple, Callable
 
 from rix.core.common import OPCODE
 from rix.core.socket import Socket
-from rix.msg.message import Message
-from rix.msg.standard import Void
-from rix.msg.mediator import ActRequest, ActResponse, Operation, Status
 from rix.core.spinner import Spinner
+from rix.msg import Message
+from rix.std_msgs import Void
+from rix.sys_msgs import ActRequest, ActResponse, Operation, Status
 
 
 class ActionClient(Spinner):

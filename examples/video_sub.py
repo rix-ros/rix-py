@@ -4,7 +4,7 @@ import argparse
 from threading import Lock
 
 from rix.core import Node, TimerCallback
-from rix.msg.sensor import CompressedImage
+from rix.sensor_msgs import CompressedImage
 
 frame = None
 frame_mutex = Lock()

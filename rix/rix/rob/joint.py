@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from rix.msg.sensor import JointState
+from rix.sensor_msgs import JointState
 import enum
 from typing import Any
 

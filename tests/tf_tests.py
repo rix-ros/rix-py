@@ -3,8 +3,8 @@ import numpy as np
 import time
 from unittest.mock import Mock, patch
 from rix.tf.frame_graph import TransformBuffer, FrameGraph, Frame
-from rix.msg.geometry import TF, TransformStamped, Transform, Vector3, Quaternion
-from rix.msg.standard import Header, Time
+from rix.geometry_msgs import TF, TransformStamped, Transform, Vector3, Quaternion
+from rix.std_msgs import Header, Time
 
 class TestTransformBuffer(unittest.TestCase):
     def setUp(self):

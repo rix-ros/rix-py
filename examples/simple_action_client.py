@@ -1,5 +1,5 @@
 from rix.core import Node, TimerCallback
-from rix.msg.standard import Float, Double
+from rix.std_msgs import Float, Double
 
 
 def main():

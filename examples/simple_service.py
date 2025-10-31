@@ -1,5 +1,5 @@
 from rix.core import Node
-from rix.msg.standard import String, UInt32
+from rix.std_msgs import String, UInt32
 
 
 def alphabet(req: UInt32, res: String) -> None:
