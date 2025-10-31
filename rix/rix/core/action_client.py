@@ -94,7 +94,7 @@ class ActionClient(Spinner):
         op = Operation()
         # Clear any pending feedback messages
         while True:
-            self.client.recv_message(op, op.size())
+            self.client.recv_message(op, op.get_prefix_len())
             if op.opcode == OPCODE.ACT_RESPONSE_MESSAGE:
                 break
             self.client.ignore_message(op.len)
@@ -141,7 +141,7 @@ class ActionClient(Spinner):
             return
 
         op = Operation()
-        if not self.client.recv_message(op, op.size()):
+        if not self.client.recv_message(op, op.get_prefix_len()):
             self.client.close()
             self.client = None
             return

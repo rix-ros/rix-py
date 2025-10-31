@@ -87,7 +87,7 @@ class Node(Spinner):
                 return
 
             op = Operation()
-            if not conn.recv_message(op, op.size()):
+            if not conn.recv_message(op, op.get_prefix_len()):
                 return
 
             if op.opcode == OPCODE.PING:

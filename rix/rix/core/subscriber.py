@@ -89,6 +89,7 @@ class Subscriber(Spinner):
                 client = Socket()
                 client.set_blocking(False)
                 client.connect((pub.endpoint.address, pub.endpoint.port))
+                client.set_blocking(True)
 
                 self.clients.add(client)
 

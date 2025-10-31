@@ -1,7 +1,10 @@
 import socket
+from os import readv, writev
+import ctypes
 import select
+from typing import List, Tuple
 
-from rix.msg import Message
+from rix.msg import Message, Serializable
 from rix.sys_msgs import Operation
 
 
@@ -113,6 +116,26 @@ class Socket:
     def is_exception(self) -> bool:
         return self.wait_exception(0.0)
 
+    def _writev(self, buffers: List[Tuple[int, int]]) -> int:
+        views = [
+            bytes((ctypes.c_char * length).from_address(address))
+            for address, length in buffers
+        ]
+        try:
+            return writev(self.sock.fileno(), views)
+        except Exception as _:
+            return -1
+
+    def _readv(self, buffers: List[Tuple[int, int]]) -> int:
+        views = [
+            memoryview((ctypes.c_char * length).from_address(address))
+            for address, length in buffers
+        ]
+        try:
+            return readv(self.sock.fileno(), views)
+        except Exception as _:
+            return -1
+
     def _send(self, buffer: bytes) -> int:
         try:
             return self.sock.send(buffer)
@@ -130,40 +153,37 @@ class Socket:
         # Serialize the message
         op = Operation()
         op.opcode = int(opcode)
-        op.len = msg.size()
-        buffer = op.serialize()
-        buffer += msg.serialize()
+        op.len = msg.get_prefix_len()
+        segments = op.get_segments()
 
-        try:
-            total_sent = 0
-            while total_sent < len(buffer):
-                sent = self._send(buffer[total_sent:])
-                if sent <= 0:
-                    return False
-                total_sent += sent
-            return total_sent == len(buffer)
-        except Exception as _:
-            return False
+        prefix = msg.get_prefix_bytes()
+        # Convert prefix bytes into a segment
+        prefix_ctypes = (ctypes.c_uint8 * len(prefix)).from_buffer_copy(prefix)
+        if len(prefix) > 0:
+            segments.append((ctypes.addressof(prefix_ctypes), len(prefix)))
+        
+        segments.extend(msg.get_segments())
+        
+        # Send all segments using writev
+        sent = self._writev(segments)
+        return sent > 0
 
-    def recv_message(self, msg: Message, len: int) -> bool:
-        # Read the message body only
-        buffer = bytearray(len)
-        total_received: int = 0
-        try:
-            while total_received < len:
-                read = self._recv(buffer, total_received)
-                if read == -1:
-                    return False
-                total_received += read
-            msg.deserialize(bytes(buffer), Message.Offset())
-            return True
-        except Exception as e:
-            print(f"Error receiving message: {e}")
-            return False
+    def recv_message(self, msg: Message, prefix_len: int) -> bool:
+        if prefix_len > 0:
+            prefix_buffer = bytearray(prefix_len)
+            read = self._recv(prefix_buffer, 0)
+
+            offset = Serializable.Offset()
+            if (not msg.resize(prefix_buffer, read, offset)):
+                return False
+            
+        segments = msg.get_segments()
+        read = self._readv(segments)
+        return read > 0
 
     def recv_message_with_opcode(self, op: Operation, msg: Message) -> bool:
         # Read the operation header first
-        if not self.recv_message(op, op.size()):
+        if not self.recv_message(op, op.get_prefix_len()):
             return False
         # Then read the message body
         return self.recv_message(msg, op.len)
