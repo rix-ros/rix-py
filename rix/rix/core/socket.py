@@ -117,13 +117,49 @@ class Socket:
 
     def _writev(self, buffers: List[memoryview]) -> int:
         try:
-            return writev(self.sock.fileno(), buffers)
+            # Write all data in a loop
+            total_sent: int = 0
+            total_size: int = sum(len(buf) for buf in buffers)
+            while total_sent < total_size:
+                sent = writev(self.sock.fileno(), buffers)
+                if sent == -1:
+                    return -1
+                total_sent += sent
+                # Remove sent data from buffers
+                bytes_left = sent
+                new_buffers: List[memoryview] = []
+                for buf in buffers:
+                    if bytes_left >= len(buf):
+                        bytes_left -= len(buf)
+                    else:
+                        new_buffers.append(buf[bytes_left:])
+                        bytes_left = 0
+                buffers = new_buffers
+            return total_sent
         except Exception as _:
             return -1
 
     def _readv(self, buffers: List[memoryview]) -> int:
         try:
-            return readv(self.sock.fileno(), buffers)
+            # Read all data in a loop
+            total_received: int = 0
+            total_size: int = sum(len(buf) for buf in buffers)
+            while total_received < total_size:
+                received = readv(self.sock.fileno(), buffers)
+                if received == -1:
+                    return -1
+                total_received += received
+                # Remove received data from buffers
+                bytes_left = received
+                new_buffers: List[memoryview] = []
+                for buf in buffers:
+                    if bytes_left >= len(buf):
+                        bytes_left -= len(buf)
+                    else:
+                        new_buffers.append(buf[bytes_left:])
+                        bytes_left = 0
+                buffers = new_buffers
+            return total_received
         except Exception as _:
             return -1
 
