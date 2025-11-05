@@ -1,6 +1,5 @@
 import socket
 from os import readv, writev
-import ctypes
 import select
 from typing import List, Tuple
 
@@ -116,23 +115,15 @@ class Socket:
     def is_exception(self) -> bool:
         return self.wait_exception(0.0)
 
-    def _writev(self, buffers: List[Tuple[int, int]]) -> int:
-        views = [
-            bytes((ctypes.c_char * length).from_address(address))
-            for address, length in buffers
-        ]
+    def _writev(self, buffers: List[memoryview]) -> int:
         try:
-            return writev(self.sock.fileno(), views)
+            return writev(self.sock.fileno(), buffers)
         except Exception as _:
             return -1
 
-    def _readv(self, buffers: List[Tuple[int, int]]) -> int:
-        views = [
-            memoryview((ctypes.c_char * length).from_address(address))
-            for address, length in buffers
-        ]
+    def _readv(self, buffers: List[memoryview]) -> int:
         try:
-            return readv(self.sock.fileno(), views)
+            return readv(self.sock.fileno(), buffers)
         except Exception as _:
             return -1
 
@@ -156,14 +147,13 @@ class Socket:
         op.len = msg.get_prefix_len()
         segments = op.get_segments()
 
-        prefix = msg.get_prefix_bytes()
-        # Convert prefix bytes into a segment
-        prefix_ctypes = (ctypes.c_uint8 * len(prefix)).from_buffer_copy(prefix)
+        prefix = memoryview(msg.get_prefix_bytes())
+        # Convert prefix bytes into a memoryview
         if len(prefix) > 0:
-            segments.append((ctypes.addressof(prefix_ctypes), len(prefix)))
-        
+            segments.append(prefix)
+
         segments.extend(msg.get_segments())
-        
+
         # Send all segments using writev
         sent = self._writev(segments)
         return sent > 0
@@ -174,9 +164,9 @@ class Socket:
             read = self._recv(prefix_buffer, 0)
 
             offset = Serializable.Offset()
-            if (not msg.resize(prefix_buffer, read, offset)):
+            if not msg.resize(prefix_buffer, read, offset):
                 return False
-            
+
         segments = msg.get_segments()
         read = self._readv(segments)
         return read > 0
