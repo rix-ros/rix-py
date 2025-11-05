@@ -30,6 +30,9 @@ def main(args: argparse.Namespace):
             print("Error! Failed to read frame.")
             return
 
+        # Resize to quarter resolution for performance
+        frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+
         # Encode the frame as a JPEG image
         ret, frame = cv2.imencode(".jpg", frame)
         if not ret:
