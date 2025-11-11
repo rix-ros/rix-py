@@ -2,10 +2,10 @@ from typing import Tuple, Callable
 
 from rix.core.common import OPCODE
 from rix.core.socket import Socket
-from rix.msg.message import Message
-from rix.msg.standard import Void
-from rix.msg.mediator import ActRequest, ActResponse, Operation, Status
 from rix.core.spinner import Spinner
+from rix.msg import Message
+from rix.std_msgs import Void
+from rix.sys_msgs import ActRequest, ActResponse, Operation, Status
 
 
 class ActionClient(Spinner):
@@ -94,7 +94,7 @@ class ActionClient(Spinner):
         op = Operation()
         # Clear any pending feedback messages
         while True:
-            self.client.recv_message(op, op.size())
+            self.client.recv_message(op, op.get_prefix_len())
             if op.opcode == OPCODE.ACT_RESPONSE_MESSAGE:
                 break
             self.client.ignore_message(op.len)
@@ -141,7 +141,7 @@ class ActionClient(Spinner):
             return
 
         op = Operation()
-        if not self.client.recv_message(op, op.size()):
+        if not self.client.recv_message(op, op.get_prefix_len()):
             self.client.close()
             self.client = None
             return

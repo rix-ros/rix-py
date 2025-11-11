@@ -7,9 +7,9 @@ from rix.rob.link import Link, Material
 from rix.rob.msg_util import (
     matrix_to_transform,
 )
-from rix.msg.geometry import TF, TransformStamped
-from rix.msg.sensor import JS
-from rix.msg.standard import Time
+from rix.geometry_msgs import TF, TransformStamped
+from rix.sensor_msgs import JS
+from rix.std_msgs import Time
 import os
 
 HOME = os.path.expanduser("~")

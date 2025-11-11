@@ -1,5 +1,5 @@
 from rix.core import Node
-from rix.msg.geometry import TF, TransformStamped
+from rix.geometry_msgs import TF, TransformStamped
 
 class TransformBroadcaster:
     def __init__(self, node: Node):

@@ -1,5 +1,5 @@
 from rix.core import Node
-from rix.msg.standard import Double, Float
+from rix.std_msgs import Double, Float
 from math import factorial
 
 max_iters = 10

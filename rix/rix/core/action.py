@@ -2,9 +2,9 @@ from typing import Tuple, Callable
 
 from rix.core.common import OPCODE
 from rix.core.socket import Socket
-from rix.msg.message import Message
-from rix.msg.mediator import ActInfo, Status, Operation
 from rix.core.spinner import Spinner
+from rix.msg import Message
+from rix.sys_msgs import ActInfo, Status, Operation
 
 
 class Action(Spinner):
@@ -109,7 +109,7 @@ class Action(Spinner):
             ):
                 return
             op = Operation()
-            if not conn.recv_message(op, op.size()):
+            if not conn.recv_message(op, op.get_prefix_len()):
                 return
 
             # Reject if we already have a connection
@@ -128,7 +128,7 @@ class Action(Spinner):
                 return
 
             # Receive goal message
-            if not conn.recv_message(self.goal_instance, self.goal_instance.size()):
+            if not conn.recv_message(self.goal_instance, op.len):
                 status.error = -1
                 conn.send_message(OPCODE.ACT_RESPONSE_MESSAGE, status)
                 conn.close()
@@ -154,12 +154,12 @@ class Action(Spinner):
         # Check for cancel or preempt messages from current connection
         if self.connection.is_readable():
             op = Operation()
-            if not self.connection.recv_message(op, op.size()):
+            if not self.connection.recv_message(op, op.get_prefix_len()):
                 return
 
             if op.opcode == OPCODE.ACT_PREEMPT_MESSAGE:
                 if not self.connection.recv_message(
-                    self.goal_instance, self.goal_instance.size()
+                    self.goal_instance, op.len
                 ):
                     self.connection.close()
                     self.connection = None

@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from rix.core import Node
-from rix.msg.geometry import TF, Point, Pose, Quaternion
-from rix.msg.sensor import PointCloud
+from rix.geometry_msgs import TF, Point, Pose, Quaternion
+from rix.sensor_msgs import PointCloud
 from rix.tf.frame_graph import FrameGraph
 
 

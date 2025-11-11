@@ -1,6 +1,6 @@
 from rix.core import Node
-from rix.msg.standard import Header
-from rix.msg.mediator import SystemInfo
+from rix.std_msgs import Header
+from rix.sys_msgs import SystemInfo
 
 
 def main():

@@ -1,4 +1,4 @@
-from rix.msg.geometry import Transform, Vector3, Quaternion
+from rix.geometry_msgs import Transform, Vector3, Quaternion
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial.transform import Slerp

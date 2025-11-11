@@ -1,5 +1,6 @@
 import time
 from typing import Callable
+
 from rix.core.spinner import Spinner
 
 

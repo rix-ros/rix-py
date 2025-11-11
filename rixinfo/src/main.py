@@ -8,8 +8,8 @@ sys.path.append(rix_path)
 from rix.core import Node
 from rix.core.socket import Socket
 from rix.core.common import OPCODE
-from rix.msg.mediator import SystemInfo, Status, Operation
-from rix.msg.standard import Void
+from rix.sys_msgs import SystemInfo, Status, Operation
+from rix.std_msgs import Void
 
 import importlib
 import argparse

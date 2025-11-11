@@ -1,8 +1,9 @@
 import cv2
 import argparse
+import ctypes
 
 from rix.core import Node, TimerCallback
-from rix.msg.sensor import CompressedImage
+from rix.sensor_msgs import CompressedImage
 
 
 def main(args: argparse.Namespace):
@@ -20,6 +21,8 @@ def main(args: argparse.Namespace):
 
     cam = cv2.VideoCapture(camIndex)
     msg = CompressedImage()
+    msg.header.frame_id = "camera"
+    msg.header.seq = 0
 
     def timer_callback(event: TimerCallback.Event):
         ret, frame = cam.read()
@@ -27,13 +30,17 @@ def main(args: argparse.Namespace):
             print("Error! Failed to read frame.")
             return
 
+        # Resize to quarter resolution for performance
+        frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+
         # Encode the frame as a JPEG image
         ret, frame = cv2.imencode(".jpg", frame)
         if not ret:
             print("Error! Failed to encode frame.")
             return
 
-        msg.data = frame.flatten()
+        msg.header.seq = msg.header.seq + 1
+        msg.data = memoryview(frame.tobytes())
         pub.publish(msg)
 
     node.create_timer(1 / 60, timer_callback)

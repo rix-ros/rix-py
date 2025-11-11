@@ -9,15 +9,15 @@ from rix.rix.core.service_client import ServiceClient
 from rix.rix.core.socket import Socket
 from rix.rix.core.common import OPCODE, DEFAULT_IP
 from rix.msg.message import Message
-from rix.msg.mediator.PubInfo import PubInfo
-from rix.msg.mediator.SubInfo import SubInfo
-from rix.msg.mediator.SrvInfo import SrvInfo
-from rix.msg.mediator.SrvRequest import SrvRequest
-from rix.msg.mediator.SrvResponse import SrvResponse
-from rix.msg.mediator.SubNotify import SubNotify
-from rix.msg.mediator.Operation import Operation
-from rix.msg.mediator.Status import Status
-from rix.msg.geometry.Point import Point
+from rix.sys_msgs.PubInfo import PubInfo
+from rix.sys_msgs.SubInfo import SubInfo
+from rix.sys_msgs.SrvInfo import SrvInfo
+from rix.sys_msgs.SrvRequest import SrvRequest
+from rix.sys_msgs.SrvResponse import SrvResponse
+from rix.sys_msgs.SubNotify import SubNotify
+from rix.sys_msgs.Operation import Operation
+from rix.sys_msgs.Status import Status
+from rix.geometry_msgs.Point import Point
 
 
 class MockMessage(Message):

@@ -11,16 +11,16 @@ from rix.core.service import Service
 from rix.core.service_client import ServiceClient
 from rix.core.timer import Timer
 from rix.msg.message import Message
-from rix.msg.mediator.NodeInfo import NodeInfo
-from rix.msg.mediator.PubInfo import PubInfo
-from rix.msg.mediator.SubInfo import SubInfo
-from rix.msg.mediator.SrvInfo import SrvInfo
-from rix.msg.mediator.SrvRequest import SrvRequest
-from rix.msg.mediator.ParamInfo import ParamInfo
-from rix.msg.mediator.SystemInfo import SystemInfo
-from rix.msg.mediator.Operation import Operation
-from rix.msg.mediator.Status import Status
-from rix.msg.standard.UInt64 import UInt64
+from rix.sys_msgs.NodeInfo import NodeInfo
+from rix.sys_msgs.PubInfo import PubInfo
+from rix.sys_msgs.SubInfo import SubInfo
+from rix.sys_msgs.SrvInfo import SrvInfo
+from rix.sys_msgs.SrvRequest import SrvRequest
+from rix.sys_msgs.ParamInfo import ParamInfo
+from rix.sys_msgs.SystemInfo import SystemInfo
+from rix.sys_msgs.Operation import Operation
+from rix.sys_msgs.Status import Status
+from rix.std_msgs.UInt64 import UInt64
 
 
 class MockMessage(Message):

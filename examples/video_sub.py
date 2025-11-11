@@ -1,23 +1,47 @@
 import cv2
 import numpy as np
 import argparse
+import ctypes
+import time
 from threading import Lock
 
 from rix.core import Node, TimerCallback
-from rix.msg.sensor import CompressedImage
+from rix.sensor_msgs import CompressedImage
 
 frame = None
 frame_mutex = Lock()
+last_time = None
+frame_count = 0
+fps = 0.0
 
 
 def store_frame(msg: CompressedImage) -> None:
-    global frame
+    global frame, last_time, frame_count, fps
+    
+    current_time = time.time()
+    
     with frame_mutex:
-        arr = np.array(msg.data, dtype=np.uint8)
-        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        # Fast: direct conversion without copying
+        np_arr = np.frombuffer(msg.data, np.uint8)
+        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    
     if frame is None:
         print("Error! Failed to decode frame.")
         return
+    
+    # Calculate FPS
+    if last_time is not None:
+        frame_count += 1
+        elapsed = current_time - last_time
+        
+        # Update FPS every second
+        if elapsed >= 1.0:
+            fps = frame_count / elapsed
+            print(f"FPS: {fps:.2f}")
+            frame_count = 0
+            last_time = current_time
+    else:
+        last_time = current_time
 
 
 def main():

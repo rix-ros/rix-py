@@ -1,5 +1,5 @@
 from rix.core import Node
-from rix.msg.standard import Header
+from rix.std_msgs import Header
 
 
 def main():
