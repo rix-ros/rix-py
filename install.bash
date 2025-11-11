@@ -31,30 +31,15 @@ source $HOME/.rix/venv/bin/activate
 
 pip install -r requirements.txt
 
-# Create the executable
-python3.12 -m PyInstaller \
-    --onedir \
-    --strip \
-    --optimize 2 \
-    --noupx \
-    --name rixinfo \
-    rixinfo/src/main.py
+# Copy rixinfo
+cp -r rixinfo $HOME/.rix/
 
-# Check if the executable was created
-if [ ! -f "dist/rixinfo/rixinfo" ]; then
-    echo "Error: rixinfo executable not found in dist/rixinfo/"
-    exit 1
-fi
-
-# Copy the required files
-cp -r dist/rixinfo "$HOME/.rix/"
+# Ensure main.py is executable
+chmod +x "$HOME/.rix/rixinfo/src/main.py"
 
 # Create symbolic link to rixinfo
 mkdir -p "$HOME/.rix/bin/"
-ln -sf "$HOME/.rix/rixinfo/rixinfo" "$HOME/.rix/bin/rixinfo"
-
-# Clean up
-rm -rf build/ dist/
+ln -sf "$HOME/.rix/rixinfo/src/main.py" "$HOME/.rix/bin/rixinfo"
 
 pip install -e $HOME/.rix/python/rix
 deactivate

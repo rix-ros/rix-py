@@ -1,9 +1,7 @@
+#!/usr/bin/env python3.12
+
 import sys
 import os
-
-# This is necessary for using dynamically loaded message types due to PyInstaller limitations
-rix_path = os.path.expanduser("~/.rix/python/rix")
-sys.path.append(rix_path)
 
 from rix.core import Node
 from rix.core.socket import Socket
@@ -15,12 +13,11 @@ import importlib
 import argparse
 import time
 
-ROOT = os.getenv("HOME", "")
-os.environ["MPLCONFIGDIR"] = os.path.join(ROOT, ".rix", "rixinfo", ".matplotlib")
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import networkx as nx
 
+ROOT = os.getenv("HOME")
 USAGE = """rixinfo [-h] function [arg]
 
 Functions:
