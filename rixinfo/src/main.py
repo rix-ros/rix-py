@@ -197,7 +197,7 @@ def topic(args: list[str]) -> None:
         except ValueError:
             print("Message name must be in the form <package>/<name>")
             return
-        module_path = f"rix.msg.{package}.{name}"
+        module_path = f"rix.{package}.{name}"
         try:
             module = importlib.import_module(module_path)
             message_class = getattr(module, name)
@@ -239,7 +239,7 @@ def topic(args: list[str]) -> None:
         except ValueError:
             print("Message name must be in the form <package>/<name>")
             return
-        module_path = f"rix.msg.{package}.{name}"
+        module_path = f"rix.{package}.{name}"
         try:
             module = importlib.import_module(module_path)
             message_class = getattr(module, name)

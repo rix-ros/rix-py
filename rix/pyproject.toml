@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rix"
+version = "1.0.0"
+description = "Core implementation of RIX"
+readme = "../readme.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy",
+    "scipy",
+    "jsonschema",
+    "urdf_parser_py",
+    "pycollada",
+    "open3d",
+    "jsonmacros",
+    "matplotlib",
+    "networkx",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rix*"]

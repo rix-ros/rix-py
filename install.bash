@@ -29,8 +29,6 @@ fi
 echo "Installing rix-py"
 source $HOME/.rix/venv/bin/activate
 
-pip install -r requirements.txt
-
 # Copy rixinfo
 cp -r rixinfo $HOME/.rix/
 
