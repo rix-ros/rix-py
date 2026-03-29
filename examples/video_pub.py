@@ -1,6 +1,5 @@
 import cv2
 import argparse
-import ctypes
 
 from rix.core import Node, TimerCallback
 from rix.sensor_msgs import CompressedImage
@@ -30,11 +29,15 @@ def main(args: argparse.Namespace):
             print("Error! Failed to read frame.")
             return
 
-        # Resize to quarter resolution for performance
-        frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        # Get 800x640 frame for performance
+        fx_ = 1#400 / frame.shape[1]
+        fy_ = 1#320 / frame.shape[0]
+
+        frame = cv2.resize(frame, (0, 0), fx=fx_, fy=fy_)
+        print(f"Frame size: {frame.shape[1]}x{frame.shape[0]}")
 
         # Encode the frame as a JPEG image
-        ret, frame = cv2.imencode(".jpg", frame)
+        ret, frame = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
         if not ret:
             print("Error! Failed to encode frame.")
             return

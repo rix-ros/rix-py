@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-import argparse
-import ctypes
 import time
 from threading import Lock
 
@@ -17,23 +15,24 @@ fps = 0.0
 
 def store_frame(msg: CompressedImage) -> None:
     global frame, last_time, frame_count, fps
-    
+
     current_time = time.time()
-    
+
     with frame_mutex:
         # Fast: direct conversion without copying
         np_arr = np.frombuffer(msg.data, np.uint8)
+        print(f"Received frame size: {len(msg.data)} bytes")
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-    
+
     if frame is None:
         print("Error! Failed to decode frame.")
         return
-    
+
     # Calculate FPS
     if last_time is not None:
         frame_count += 1
         elapsed = current_time - last_time
-        
+
         # Update FPS every second
         if elapsed >= 1.0:
             fps = frame_count / elapsed
