@@ -24,13 +24,14 @@ RIX-PY makes it easy to develop complex robotic systems, offering a clean API an
 Run the install script to set up RIX-PY and its dependencies:
 
 ```bash
-bash install.sh
+bash install.bash
 ```
 
 This will:
 - Copy the `rix` Python package to `$HOME/.rix/python/`
 - Create a Python 3.12 virtual environment in `$HOME/.rix/venv/`
 - Install `rix` in editable mode
+- Copy the `rixinfo` tool to `$HOME/.rix/rixinfo/` and create a `rixinfo` symlink in `$HOME/.rix/bin/`
 
 **Note:** You need Python 3.12 installed and available in your PATH.
 
@@ -55,14 +56,26 @@ echo 'source ~/.rix/setup.bash' >> ~/.bashrc
 
 RIX-PY is organized into Nodes that communicate via message streams (topics) and remote procedural calls (services). Start the `rixhub` server before running your nodes.
 
+### Timer Example
+Create a node with a timer that prints a message every second:
+
+```python
+from rix.core import Node, Timer
+def timer_callback(event: Timer.Event):
+    print("Timer triggered!")
+
+node = Node("timer_node")
+node.create_timer(1.0, timer_callback)
+node.spin()
+```
+
 ### Publisher Example
 
 Create a publisher that sends `Header` messages at 1 Hz:
 
 ```python
-from rixcore.node import Node
-from rix.std_msgs.Header import Header
-from rixcore.timer import Timer
+from rix.core import Node, Timer
+from rix.std_msgs import Header
 from time import time_ns
 
 def timer_callback(event: Timer.Event):
@@ -84,11 +97,11 @@ node.spin()
 Register a subscriber on the same topic:
 
 ```python
-from rixcore.node import Node
-from rix.std_msgs.Header import Header
+from rix.core import Node
+from rix.std_msgs import Header
 
 def callback(msg: Header):
-    print(f"Received: {msg.frame_id}, {msg.stamp.sec}.{msg.stamp.nsec}")
+    print(f"{msg.frame_id}, {msg.seq}")
 
 node = Node("subscriber_node")
 node.create_subscriber(Header, "/my_topic", callback)
@@ -100,16 +113,17 @@ node.spin()
 Provide a request-response service:
 
 ```python
-from rixcore.node import Node
-from rix.std_msgs.String import String
-from rix.std_msgs.UInt32 import UInt32
+from rix.core import Node
+from rix.std_msgs import Header, UInt32
 
-def service_callback(req: UInt32, res: String):
-    alphabet = "abcdefghijklmnopqrstuvwxyz"
-    res.data = alphabet[req.data % 26]
+def service_callback(req: UInt32, res: Header):
+    print(f"Received request: {req.data}")
+    res.frame_id = "Hello from service!"
+    res.seq = req.data
+    return
 
 node = Node("service_node")
-node.create_service(UInt32, String, "/alphabet", service_callback)
+node.create_service(UInt32, Header, "/my_service", service_callback)
 node.spin()
 ```
 
@@ -118,25 +132,68 @@ node.spin()
 Call a service from another node:
 
 ```python
-from rixcore.node import Node
-from rix.std_msgs.String import String
-from rix.std_msgs.UInt32 import UInt32
+from rix.core import Node
+from rix.std_msgs import Header, UInt32
 
 node = Node("service_client_node")
-service_client = node.create_service_client(UInt32, String, "/alphabet")
+service_client = node.create_service_client(UInt32, Header, "/my_service")
 
 req = UInt32()
 req.data = 5
-res = String()
+res = Header()
 if service_client.call(req, res):
-    print(f"Response: {res.data}")
+    print(f"Response: {res.frame_id}, {res.seq}")
 ```
 
----
+### Action Example
+
+Create an action server that counts to a goal number:
+
+```python
+from rix.core import Node
+from rix.std_msgs import UInt32, Header
+
+count = 0
+
+def action_callback(goal: UInt32, feedback: UInt32, result: Header):
+    global count
+    count += 1
+    if count < goal.data:
+        feedback.data = count
+        return False
+    result.frame_id = "Action completed!"
+    result.seq = count
+    count = 0
+    return True
+
+node = Node("action_node")
+node.create_action(UInt32, Header, Header, "/my_action", action_callback)
+node.spin()
+```
+
+### Action Client Example
+Dispatch a goal to the action server:
+
+```python
+from rix.core import Node, Timer
+from rix.std_msgs import UInt32, Header
+
+node = Node("action_client_node")
+action_client = node.create_action_client(UInt32, Header, Header, "/my_action")
+
+def timer_callback(event: Timer.Event):
+    global action_client
+    goal = UInt32()
+    goal.data = 5
+    action_client.dispatch(goal)
+
+node.create_timer(1.0, timer_callback)
+node.spin()
+```
 
 ## Advanced: Video Streaming Example
 
-RIX-PY supports streaming video frames using OpenCV. See [`test/video_pub.py`](test/video_pub.py) and [`test/video_sub.py`](test/video_sub.py) for full examples.
+RIX-PY supports streaming video frames using OpenCV. See [`examples/video_pub.py`](examples/video_pub.py) and [`examples/video_sub.py`](examples/video_sub.py) for full examples.
 
 ---
 
