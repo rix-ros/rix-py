@@ -24,13 +24,14 @@ RIX-PY makes it easy to develop complex robotic systems, offering a clean API an
 Run the install script to set up RIX-PY and its dependencies:
 
 ```bash
-bash install.sh
+bash install.bash
 ```
 
 This will:
 - Copy the `rix` Python package to `$HOME/.rix/python/`
 - Create a Python 3.12 virtual environment in `$HOME/.rix/venv/`
 - Install `rix` in editable mode
+- Copy the `rixinfo` tool to `$HOME/.rix/rixinfo/` and create a `rixinfo` symlink in `$HOME/.rix/bin/`
 
 **Note:** You need Python 3.12 installed and available in your PATH.
 
@@ -192,7 +193,7 @@ node.spin()
 
 ## Advanced: Video Streaming Example
 
-RIX-PY supports streaming video frames using OpenCV. See [`test/video_pub.py`](test/video_pub.py) and [`test/video_sub.py`](test/video_sub.py) for full examples.
+RIX-PY supports streaming video frames using OpenCV. See [`examples/video_pub.py`](examples/video_pub.py) and [`examples/video_sub.py`](examples/video_sub.py) for full examples.
 
 ---
 
